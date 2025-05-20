@@ -3,7 +3,7 @@
 REMOTE_USER="webuser"
 REMOTE_HOST="192.168.2.36"
 REMOTE_DIR="/var/www/site-8084"
-LOCAL_BUILD_DIR="build"
+LOCAL_BUILD_DIR="dist"
 
 # Fehlerbehandlung: Skript bei Fehler beenden
 set -e
