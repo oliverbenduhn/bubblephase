@@ -1,0 +1,61 @@
+/* Globale Stile für das Bubble Shooter Spiel */
+
+/* Grundlegende Reset-Stile */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: Arial, sans-serif;
+  overflow: hidden;
+  background-color: #000;
+  height: 100vh;
+  width: 100vw;
+  position: fixed;
+  touch-action: none; /* Verhindert Browser-Zooming auf Touch-Geräten */
+}
+
+/* Optimierungen für mobile Geräte */
+html {
+  /* Verhindert Scrolling und Zooming auf mobilen Geräten */
+  overscroll-behavior: none;
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+/* Container für das Phaser-Spiel */
+#phaser-game-container {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+}
+
+/* Stil für das Canvas-Element, das von Phaser erzeugt wird */
+canvas {
+  display: block;
+  margin: 0 auto;
+  touch-action: none; /* Wichtig für Touch-Eingaben */
+}
+
+/* Verstecke Adressleiste auf mobilen Browsern */
+@media screen and (max-width: 768px) {
+  body {
+    height: calc(100vh + 60px); /* Trick zum Verstecken der Adressleiste */
+    min-height: -webkit-fill-available;
+  }
+}
+
+/* Orientierungsspezifische Stile */
+@media screen and (orientation: portrait) {
+  /* Stile für Portrait-Modus */
+}
+
+@media screen and (orientation: landscape) {
+  /* Stile für Landscape-Modus */
+}

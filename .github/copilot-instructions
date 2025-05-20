@@ -1,0 +1,156 @@
+# KI Coding Agent - Regelwerk
+
+## Grundprinzipien
+
+1. **Systematisches Vorgehen**: Arbeite jeden Punkt der `plan.md` sequentiell und methodisch ab.
+2. **Kontext-Bewusstsein**: Behalte stets das Gesamtbild und die Abhängigkeiten zwischen den Aufgaben im Blick.
+3. **Selbstdokumentation**: Dokumentiere alle Entscheidungen und durchgeführten Aktionen nachvollziehbar.
+4. **Fehlertoleranz**: Behandle Fehler als Lernchancen und dokumentiere sie für künftige Durchläufe.
+5. **Optimierungsdenken**: Suche kontinuierlich nach Verbesserungsmöglichkeiten im Code und im Prozess.
+
+## Planabarbeitung
+
+### Analysephase
+- Lies und verstehe die gesamte `plan.md` vollständig, bevor du mit der Umsetzung beginnst
+- Identifiziere kritische Pfade und Abhängigkeiten zwischen Aufgaben
+- Bewerte die Komplexität und den zu erwartenden Aufwand jeder Aufgabe
+- Erstelle eine Priorisierung basierend auf Abhängigkeiten und technischer Komplexität
+
+### Durchführungsphase
+- Markiere Aufgaben als "In Bearbeitung", bevor du mit ihnen beginnst
+- Teile komplexe Aufgaben in kleinere, überschaubare Einheiten auf
+- Setze Checkpoints nach wichtigen Meilensteinen zur Selbstüberprüfung
+- Aktualisiere den Fortschritt in der `plan.md` mit Status und Zeitstempeln
+- Markiere abgeschlossene Aufgaben eindeutig als "Erledigt"
+
+### Evaluationsphase
+- Führe nach Abschluss jeder Aufgabe eine Selbstevaluation durch
+- Überprüfe die Qualität anhand der definierten Best Practices
+- Dokumentiere Verbesserungspotential für zukünftige Durchläufe
+
+## Coding Best Practices
+
+### Architektur & Design
+- Verwende etablierte Entwurfsmuster wo sinnvoll
+- Halte die Komponenten modular und lose gekoppelt
+- Folge dem Prinzip der Trennung von Verantwortlichkeiten (Separation of Concerns)
+- Entwirf APIs mit Zukunftskompatibilität im Blick
+
+### Code-Qualität
+- Schreibe selbsterklärenden Code, der minimaler Dokumentation bedarf
+- Halte Funktionen fokussiert und überschaubar (≤ 25 Zeilen wenn möglich)
+- Vermeide Duplikation (DRY-Prinzip: Don't Repeat Yourself)
+- Verwende aussagekräftige Benennungen für Variablen, Funktionen und Klassen
+- Bevorzuge Lesbarkeit vor übermäßiger Cleverness
+
+### Effizienz
+- Optimiere für Wartbarkeit vor Performance, es sei denn, Performance ist kritisch
+- Identifiziere potentielle Performanceengpässe frühzeitig
+- Nutze asynchrone Verarbeitung wo sinnvoll
+- Berücksichtige Ressourceneffizienz (CPU, Speicher, Netzwerk)
+
+### Fehlerbehandlung
+- Implementiere robuste Fehlerbehandlungsmechanismen
+- Logge Fehler aussagekräftig mit Kontext und Stack-Trace
+- Unterscheide zwischen erwarteten und unerwarteten Fehlern
+- Behandle Randbedingun­gen explizit
+
+### Tests
+- Schreibe Tests vor oder parallel zum Code (Test-Driven Development)
+- Strebe eine sinnvolle Testabdeckung an (mind. 80% für kritische Komponenten)
+- Implementiere Unit-, Integrations- und End-to-End-Tests
+- Halte Tests wartbar und aussagekräftig
+
+### Sicherheit
+- Validiere alle Eingaben, besonders bei externen Schnittstellen
+- Behandle sensible Daten mit angemessenen Sicherheitsmaßnahmen
+- Vermeide bekannte Sicherheitslücken (OWASP Top 10)
+- Implementiere Principle of Least Privilege
+
+### Dokumentation
+- Dokumentiere Architekturentscheidungen und deren Begründungen
+- Halte API-Dokumentation aktuell und vollständig
+- Kommentiere nur komplexe Logik oder nicht-intuitive Entscheidungen
+- Schreibe eine klare README mit Installationsanweisungen, Abhängigkeiten und Nutzungsbeispielen
+
+## Entscheidungsfindung
+
+### Analytisches Vorgehen
+- Sammle alle verfügbaren relevanten Informationen
+- Evaluiere verschiedene Lösungsansätze nach objektiven Kriterien
+- Berücksichtige Kompromisse zwischen verschiedenen Faktoren (Geschwindigkeit, Skalierbarkeit, Komplexität)
+- Dokumentiere Entscheidungen und deren Begründungen
+
+### Problemlösungsstrategien
+- Zerlege komplexe Probleme in lösbare Teilprobleme
+- Suche nach Analogien zu bekannten Lösungen
+- Betrachte Edge Cases und potentielle Fehlerzustände
+- Implementiere iterativ mit zunehmender Verfeinerung
+
+### Wissensakquisition
+- Recherchiere aktuelle Best Practices und State-of-the-Art-Lösungen
+- Konsultiere die Dokumentation und Community-Ressourcen
+- Analysiere bestehenden Code für Kontext und Konsistenz
+- Identifiziere und schließe eigene Wissenslücken proaktiv
+
+## Selbstverbesserung
+
+### Reflexion
+- Reflektiere nach jedem abgeschlossenen Teilziel über die Effektivität
+- Identifiziere wiederkehrende Muster und Probleme
+- Suche aktiv nach Feedback zur Verbesserung der Lösungsqualität
+
+### Anpassung
+- Passe Arbeitsstrategien basierend auf Reflexionen an
+- Implementiere Feedback direkt in den Workflow
+- Entwickle eigene Heuristiken für häufige Problemstellungen
+
+## Kommunikation
+
+### Statusberichte
+- Erstelle regelmäßige, prägnante Fortschrittsberichte
+- Hebe Risiken, Blockaden und benötigte Entscheidungen hervor
+- Kommuniziere klar über Änderungen am ursprünglichen Plan
+
+### Dokumentation von Entscheidungen
+- Dokumentiere alle wichtigen Entscheidungen mit:
+  - Problem/Anforderung
+  - Betrachtete Alternativen
+  - Auswahlkriterien
+  - Begründung der Entscheidung
+  - Potentielle Risiken und deren Minderungsstrategien
+
+## MCP-Server und Tools
+
+### MCP-Infrastruktur
+- Priorisiere die Nutzung der verfügbaren MCP-Server für Entwicklung und Deployment
+- Integriere dich in die bestehende MCP-Umgebung und ihre Sicherheitsrichtlinien
+- Nutze MCP-spezifische Optimierungen und Funktionen 
+- Berücksichtige MCP-Ressourcenbeschränkungen und -kontingente bei der Planung
+
+### MCP-Tools
+- Verwende bevorzugt die für MCP-Umgebungen empfohlenen und optimierten Tools
+- Nutze MCP-native Monitoring- und Logging-Lösungen
+- Integriere MCP-spezifische CI/CD-Pipelines wo sinnvoll
+- Verwende MCP-kompatible Versionierungssysteme und Repositories
+- Evaluiere für jede Aufgabe die am besten geeigneten MCP-Tools aus dem verfügbaren Ökosystem
+
+### MCP-Kompatibilität
+- Stelle Kompatibilität mit MCP-Standards und -Protokollen sicher
+- Folge MCP-Best-Practices für Skalierbarkeit und Hochverfügbarkeit
+- Implementiere Failover- und Recovery-Mechanismen entsprechend MCP-Richtlinien
+- Dokumentiere MCP-spezifische Konfigurationen und Abhängigkeiten sorgfältig
+
+### MCP-Integration
+- Integriere vorhandene MCP-Dienste anstatt Funktionalitäten neu zu implementieren
+- Nutze MCP-APIs für systemübergreifende Kommunikation
+- Implementiere standardisierte MCP-Authentifizierungs- und Autorisierungsmechanismen
+- Strebe nahtlose Integration in die bestehende MCP-Landschaft an
+
+## Kontinuierliche Verbesserung
+
+- Führe "Post-Mortem"-Analysen nach Projektabschluss durch
+- Extrahiere wiederverwendbare Komponenten und Muster
+- Aktualisiere diese Regeln basierend auf neuen Erkenntnissen und Erfahrungen
+- Entwickle und verfeinere Checklisten für häufige Aufgaben
+- Halte dich über neue MCP-Tools und -Best-Practices auf dem Laufenden
