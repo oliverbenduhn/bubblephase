@@ -1,12 +1,15 @@
 import Phaser from 'phaser';
 import { useEffect, useRef } from 'react';
-import { Bubble, BUBBLE_COLORS, BUBBLE_RADIUS } from './Bubble';
 import { Grid } from './Grid';
+import { Bubble } from './Bubble'; // Geändert von 'import Bubble from "./Bubble";'
 import { Shooter } from './Shooter';
 import { Collision } from './Collision';
+import { MobileOptimization } from './MobileOptimization';
+import { BUBBLE_RADIUS, BUBBLE_COLORS } from './config'; // Annahme, dass config.js existiert oder diese hier definiert sind
+import bubbleParticlePath from './assets/bubble-particle.svg'; // SVG importieren
 
 // Eine einfache, leere Phaser-Szene
-export class BootScene extends Phaser.Scene {
+class BootScene extends Phaser.Scene {
     constructor() {
         super({ key: 'BootScene' });
         this.grid = null;
@@ -41,8 +44,8 @@ export class BootScene extends Phaser.Scene {
     }
 
     preload() {
-        // Hier könnten später Assets geladen werden
-        console.log('BootScene preload');
+        // Lade das Partikel-Asset über den importierten Pfad
+        this.load.image('bubble', bubbleParticlePath);
     }
 
     create() {
@@ -82,9 +85,9 @@ export class BootScene extends Phaser.Scene {
             bubble.draw();
         });
 
-        // Game Over Linie definieren (exakt 10 Reihen von oben)
+        // Game Over Linie definieren (unterhalb der untersten Reihe)
         const rowHeight = BUBBLE_RADIUS * Math.sqrt(3);
-        this.gameOverY = this.grid.yOffset + (10 * rowHeight);
+        this.gameOverY = this.grid.yOffset + (this.grid.rows * rowHeight) + rowHeight / 2;
         
         // Game Over Linie erstellen
         this.gameOverLine = this.add.line(
@@ -169,47 +172,106 @@ export class BootScene extends Phaser.Scene {
         this.loadNextBubbleToCannon();
 
         // Optimierte Input Listener für Desktop und Mobile
-        // Touch und Pointer Move für das Zielen
         this.input.on('pointermove', (pointer) => {
             if (this.currentState === this.gameStates.PLAYING && this.canShoot) {
-                this.updateAim(pointer.x, pointer.y);
+                // Aktualisiere die Ziellinie nur, wenn der Pointer oberhalb der Kanone ist
+                if (pointer.y < this.cannon.y) {
+                    this.updateAim(pointer.x, pointer.y);
+                    this.aimLine.setVisible(true);
+                } else {
+                    this.aimLine.setVisible(false);
+                }
             }
         });
 
         // Touch/Click Start und Ende Handling
         this.input.on('pointerdown', (pointer) => {
+            console.log(`pointerdown event: canShoot=${this.canShoot}, shootingBubble=${this.shootingBubble ? 'exists' : 'null'}, pointerY=${pointer.y}, cannonY=${this.cannon.y}`);
             // Bei START-Zustand wird der Klick vom Start-Button verarbeitet
-            if (this.currentState === this.gameStates.START) {
-                return;
-            }
+            if (this.currentState === this.gameStates.START) return;
             
             // Speichere den Startpunkt für potentielle Drag-Operationen auf mobilen Geräten
             this.touchStartPoint = { x: pointer.x, y: pointer.y };
             
-            // Bei mobile Touch nur Zielen beginnen, nicht sofort schießen
-            if (this.isMobile && this.currentState === this.gameStates.PLAYING) {
-                // Verstärke die Sichtbarkeit der Ziellinie beim Touch
-                this.aimLine.setAlpha(0.8);
-                this.updateAim(pointer.x, pointer.y);
-            }
-            // Beim Desktop-Klick oder wenn nicht im PLAYING-Zustand
-            else if (!this.isMobile && this.currentState === this.gameStates.PLAYING && this.canShoot && this.shootingBubble && !this.shootingBubble.isMoving) {
-                this.shootBubble(pointer.x, pointer.y);
-            }
-        });
-        
-        // Beim Loslassen des Fingers/Maustaste
-        this.input.on('pointerup', (pointer) => {
-            // Bei mobilen Geräten: Schießen beim Loslassen
-            if (this.isMobile && this.currentState === this.gameStates.PLAYING && this.canShoot && 
-                this.shootingBubble && !this.shootingBubble.isMoving) {
-                // Ziellinie zurücksetzen
-                this.aimLine.setAlpha(0.3);
-                this.shootBubble(pointer.x, pointer.y);
+            if (this.currentState === this.gameStates.PLAYING) {
+                if (this.isMobile) {
+                    // Bei mobile Touch nur Zielen beginnen, nicht sofort schießen
+                    this.aimLine.setAlpha(0.8);
+                    this.updateAim(pointer.x, pointer.y);
+                } else {
+                    // Desktop-Klick: Sofort schießen wenn möglich
+                    if (this.canShoot && pointer.y < this.cannon.y) {
+                        this.shootBubble(pointer.x, pointer.y);
+                    } else {
+                        // Log why shooting didn't happen
+                        if (!this.canShoot) {
+                            console.log("pointerdown: Cannot shoot because canShoot is false.");
+                        }
+                        if (!(pointer.y < this.cannon.y)) { // Check the opposite condition for clarity
+                            console.log(`pointerdown: Cannot shoot because pointer.y (${pointer.y}) is not less than cannon.y (${this.cannon.y}).`);
+                        }
+                    }
+                }
             }
         });
 
+        this.input.on('pointerup', (pointer) => {
+            if (this.currentState === this.gameStates.PLAYING) {
+                if (this.isMobile && this.canShoot && this.shootingBubble && !this.shootingBubble.isMoving) {
+                    // Bei mobilen Geräten: Schießen beim Loslassen
+                    this.aimLine.setAlpha(0.3);
+                    if (pointer.y < this.cannon.y) {
+                        this.shootBubble(pointer.x, pointer.y);
+                    }
+                }
+            }
+        });
+        
+        // Mobile-Optimierungen initialisieren
+        this.mobileControls = new MobileOptimization(this, {
+            minButtonSize: 50,
+            hapticFeedback: true,
+            showTouchControls: true
+        });
+
+        // Event-Listener für mobile Steuerung
+        this.events.on('mobileMove', (direction) => {
+            if (direction === 'left') {
+                this.shooter.moveLeft();
+            } else if (direction === 'right') {
+                this.shooter.moveRight();
+            }
+        });
+
+        this.events.on('mobileAim', (angle) => {
+            this.shooter.setAngle(Phaser.Math.RadToDeg(angle));
+        });
+
+        this.events.on('mobileShoot', () => {
+            this.shooter.shoot();
+        });
+        
         // Game Over Linie ist bereits erstellt worden
+
+        // Erstelle ein Partikelsystem für Bubble-Explosionen
+        // Zuerst den Manager erstellen, der die Textur 'bubble' verwendet
+        this.bubbleParticleManager = this.add.particles('bubble');
+        if (this.bubbleParticleManager && typeof this.bubbleParticleManager.createEmitter === 'function') { // Zusätzliche Prüfung
+            this.bubbleParticleManager.setDepth(1); // Tiefe auf dem Manager setzen
+            
+            // Dann den Emitter von diesem Manager erstellen
+            this.bubbleExplosionEmitter = this.bubbleParticleManager.createEmitter({
+                lifespan: 300,
+                speed: { min: -150, max: 150 }, // Geschwindigkeit angepasst
+                angle: { min: 0, max: 360 },
+                scale: { start: 0.3, end: 0 }, // Skalierung angepasst
+                alpha: { start: 1, end: 0 },
+                blendMode: 'ADD',
+                on: false // Wichtig: Emitter startet inaktiv und wird manuell ausgelöst
+            });
+        } else {
+            console.error("Failed to create bubbleParticleManager or createEmitter is not a function. Ensure 'bubble' texture is loaded and Phaser version is compatible.", this.bubbleParticleManager);
+        }
     }
 
     update(time, delta) {
@@ -219,6 +281,8 @@ export class BootScene extends Phaser.Scene {
         }
 
         if (this.shootingBubble && this.shootingBubble.isMoving) {
+            console.log(`Update: Bubble moving. Pos: (${this.shootingBubble.x.toFixed(2)}, ${this.shootingBubble.y.toFixed(2)}), Vel: (${this.shootingBubble.velocityX.toFixed(2)}, ${this.shootingBubble.velocityY.toFixed(2)})`); // ADDED LOG
+
             const speedFactor = delta / 1000;
             
             // Alte Position zum Debugging
@@ -238,9 +302,9 @@ export class BootScene extends Phaser.Scene {
 
             // Kollision mit anderen Bubbles im Grid
             const collidingBubble = Collision.checkGridCollision(this.shootingBubble, this.grid);
+            console.log(`Collision check result: ${collidingBubble ? 'collision detected with R:' + collidingBubble.row + ' C:' + collidingBubble.col : 'no collision'}`); // MODIFIED LOG
             if (collidingBubble) {
-                console.log(`Bubble collision: Pos (${this.shootingBubble.x.toFixed(2)}, ${this.shootingBubble.y.toFixed(2)})`);
-                console.log(`Movement: (${oldX.toFixed(2)}, ${oldY.toFixed(2)}) -> (${this.shootingBubble.x.toFixed(2)}, ${this.shootingBubble.y.toFixed(2)})`);
+                console.log(`Grid collision detected with bubble at R:${collidingBubble.row} C:${collidingBubble.col}`); // ADDED LOG
                 this.handleBubbleCollision();
                 
                 // Nach einer Kollision, prüfe erneut auf Game-Over
@@ -252,17 +316,25 @@ export class BootScene extends Phaser.Scene {
             // Kollision mit der Decke (oberer Rand)
             // Diese Überprüfung erst NACH der Bubble-Kollisionserkennung durchführen
             if (this.shooter.checkTopCollision(this.shootingBubble, this.grid.yOffset)) {
-                console.log(`Top collision: Position (${this.shootingBubble.x.toFixed(2)}, ${this.shootingBubble.y.toFixed(2)})`);
+                console.log("Top boundary collision detected by checkTopCollision"); // ADDED LOG
                 this.handleBubbleAtTopPosition();
                 
                 // Nach einer Kollision, prüfe erneut auf Game-Over
                 this.checkGameOver();
+                return; // Wichtig: Nach Kollision nicht mehr weiter prüfen
+            }
+
+            // Prüfe, ob die Bubble ihre Bewegung beendet hat (z.B. Geschwindigkeit nahe 0)
+            if (!this.shootingBubble.isMoving) {
+                console.log("Bubble movement ended, loading next bubble");
+                this.loadNextBubbleToCannon();
             }
         }
     }
 
     // Neue optimierte Methode zur Behandlung von Kollisionen
     handleBubbleCollision() {
+        console.log("handleBubbleCollision called"); // ADDED LOG
         // Stoppe die Bubble-Bewegung
         this.stopShootingBubble();
         
@@ -289,6 +361,7 @@ export class BootScene extends Phaser.Scene {
 
     // Behandlung, wenn die Bubble den oberen Rand erreicht
     handleBubbleAtTopPosition() {
+        console.log("handleBubbleAtTopPosition called"); // ADDED LOG
         this.stopShootingBubble();
         
         // Berechne die nächste Grid-Position basierend auf der X-Koordinate
@@ -315,8 +388,10 @@ export class BootScene extends Phaser.Scene {
             }
             
             if (!placed) {
-                console.warn("No space at top row, destroying bubble");
-                this.shootingBubble.destroy();
+                console.warn("No space at top row, destroying bubble. Current shootingBubble valid?:", !!(this.shootingBubble && this.shootingBubble.gameObject)); // MODIFIED LOG
+                if (this.shootingBubble && this.shootingBubble.gameObject) {
+                    this.shootingBubble.destroy();
+                }
             }
         }
         
@@ -334,22 +409,37 @@ export class BootScene extends Phaser.Scene {
             console.log(`Found a group of ${size} bubbles to remove`);
             
             // Entferne die Bubbles mit einer Animation
-            positions.forEach(pos => {
+            positions.forEach((pos, index) => {
                 const bubble = this.grid.getBubble(pos.row, pos.col);
                 if (bubble && bubble.gameObject) {
-                    // Animiere die Bubble-Entfernung
+                    // Verzögere die Animation für jede Bubble leicht
+                    const delay = index * 50;
+                    
+                    // Pop-Animation
                     this.tweens.add({
                         targets: bubble.gameObject,
-                        scale: 0,
-                        alpha: 0,
-                        duration: 300,
+                        scale: 1.2,
+                        duration: 100,
+                        delay,
                         onComplete: () => {
-                            bubble.destroy();
+                            // Schrumpf- und Fade-Animation
+                            this.tweens.add({
+                                targets: bubble.gameObject,
+                                scale: 0,
+                                alpha: 0,
+                                duration: 200,
+                                onComplete: () => {
+                                    // Partikeleffekt an der Position der Bubble
+                                    this.bubbleExplosionEmitter.setPosition(bubble.x, bubble.y);
+                                    this.bubbleExplosionEmitter.explode(10);
+                                    bubble.destroy();
+                                }
+                            });
                         }
                     });
                 }
             });
-            
+
             // Entferne die Bubbles aus dem Grid
             this.grid.removeBubbles(positions);
             removedCount += positions.length;
@@ -370,29 +460,41 @@ export class BootScene extends Phaser.Scene {
                 console.log(`Found ${floatingBubbles.length} floating bubbles`);
                 
                 // Entferne die freischwebenden Bubbles mit einer Fallanimation
-                floatingBubbles.forEach(pos => {
+                floatingBubbles.forEach((pos, index) => {
                     const bubble = this.grid.getBubble(pos.row, pos.col);
                     if (bubble && bubble.gameObject) {
-                        // Animiere das Fallen
+                        const delay = index * 50 + 300; // Warte bis die Gruppenanimation abgeschlossen ist
+                        
+                        // Fallanimation mit Rotation
                         this.tweens.add({
                             targets: bubble.gameObject,
                             y: `+=${this.sys.game.config.height - bubble.y + BUBBLE_RADIUS}`,
-                            alpha: 0,
-                            duration: 500,
+                            rotation: Phaser.Math.Between(-2, 2),
+                            scaleX: 0.7,
+                            scaleY: 1.3,
+                            duration: 800,
+                            delay,
                             ease: 'Cubic.easeIn',
                             onComplete: () => {
+                                // Partikeleffekt am Ende der Fallanimation
+                                this.bubbleExplosionEmitter.setPosition(bubble.gameObject.x, this.sys.game.config.height - BUBBLE_RADIUS);
+                                this.bubbleExplosionEmitter.explode(5);
                                 bubble.destroy();
                             }
                         });
                     }
                 });
+                
                 this.grid.removeBubbles(floatingBubbles);
                 removedCount += floatingBubbles.length;
                 
                 // Zusätzliche Punkte für freischwebende Bubbles
-                const floatingBonus = floatingBubbles.length * 15; // Höherer Bonus für freischwebende Bubbles
+                const floatingBonus = floatingBubbles.length * 15;
                 this.score += floatingBonus;
-                console.log(`Removed ${floatingBubbles.length} floating bubbles for ${floatingBonus} bonus points`);
+                
+                // Zeige Bonus-Punkteanimation
+                const lastPos = floatingBubbles[floatingBubbles.length - 1];
+                this.showPointsAnimation(floatingBonus, lastPos.col, lastPos.row, 0xff00ff);
             }
             
             // Aktualisiere den angezeigten Score
@@ -404,26 +506,22 @@ export class BootScene extends Phaser.Scene {
         }
     }
 
-    // Zeigt eine Punkteanimation an der Position einer entfernten Bubble-Gruppe
-    showPointsAnimation(points, col, row) {
-        // Konvertiere Grid-Position in Pixel-Koordinaten
-        const position = this.grid.gridToPixel(row, col);
-        
-        // Erstelle den Punktetext
-        const pointsText = this.add.text(position.x, position.y, `+${points}`, {
+    // Zeigt eine animierte Punktzahl an der angegebenen Position
+    showPointsAnimation(points, col, row, color = 0xffff00) {
+        const pos = this.grid.gridToPixel(row, col);
+        const pointsText = this.add.text(pos.x, pos.y, `+${points}`, {
             fontSize: '24px',
             fontFamily: 'Arial',
-            color: '#ffff00',
+            color: `#${color.toString(16).padStart(6, '0')}`,
             stroke: '#000000',
             strokeThickness: 4
         });
         pointsText.setOrigin(0.5);
         
-        // Animiere den Text nach oben und lasse ihn verschwinden
         this.tweens.add({
             targets: pointsText,
-            y: position.y - 50,
-            alpha: 0,
+            y: pos.y - 50,
+            alpha: { from: 1, to: 0 },
             duration: 1000,
             ease: 'Cubic.easeOut',
             onComplete: () => {
@@ -435,10 +533,12 @@ export class BootScene extends Phaser.Scene {
     prepareNextBubble() {
         const availableColors = Object.values(BUBBLE_COLORS);
         const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        this.nextBubble = new Bubble(this, 0, 0, BUBBLE_RADIUS, randomColor);
         
+        this.nextBubble = new Bubble(this, 0, 0, BUBBLE_RADIUS, randomColor); 
+        console.log(`prepareNextBubble: New nextBubble created with color ${this.nextBubble.color}`); // Log actual color
+
         // Aktualisiere die Anzeige für die nächste Bubble
-        if (this.nextBubbleDisplay) {
+        if (this.nextBubbleDisplay && this.nextBubbleDisplay.gameObject && this.nextBubbleDisplay.gameObject.scene) {
             this.nextBubbleDisplay.destroy();
         }
         this.nextBubbleDisplay = new Bubble(
@@ -446,36 +546,56 @@ export class BootScene extends Phaser.Scene {
             this.sys.game.config.width - 80,
             this.sys.game.config.height - 80,
             BUBBLE_RADIUS,
-            randomColor
+            this.nextBubble.color // Use the color of the newly created nextBubble
         );
         this.nextBubbleDisplay.draw();
+        console.log("prepareNextBubble: nextBubbleDisplay updated.");
     }
 
     loadNextBubbleToCannon() {
+        console.log("loadNextBubbleToCannon called");
+
         if (this.shootingBubble && this.shootingBubble.gameObject) {
-            // Alte Bubble bereinigen, falls vorhanden
+            console.warn("loadNextBubbleToCannon: Active shootingBubble found and will be destroyed. This might indicate a previous shot wasn't fully cleared or this is an old bubble from cannon.");
             this.shootingBubble.destroy();
+            this.shootingBubble = null;
+        }
+
+        if (!this.nextBubble) {
+            console.warn("loadNextBubbleToCannon: this.nextBubble was null. Attempting to prepare a new one.");
+            this.prepareNextBubble(); 
         }
 
         if (this.nextBubble) {
-            this.shootingBubble = this.nextBubble;
+            this.shootingBubble = this.nextBubble; 
+            this.nextBubble = null; // Crucial: Clear this.nextBubble as it's now in the cannon
+
             this.shootingBubble.setPosition(this.cannon.x, this.cannon.y);
             this.shootingBubble.draw();
             this.shootingBubble.isMoving = false;
             this.shootingBubble.velocityX = 0;
             this.shootingBubble.velocityY = 0;
+            
             this.canShoot = true;
+            console.log("loadNextBubbleToCannon: canShoot set to true.");
+            
             this.aimLine.setVisible(true);
-            // Ziellinie auf Kanonenposition zurücksetzen
-            this.aimLine.setTo(0, 0, 0, 0);
-            // Kanonenzeiger auf Standardwinkel setzen (nach oben)
-            this.cannonPointer.rotation = -Math.PI / 2;
-            this.prepareNextBubble();
+            if (this.input.activePointer && this.input.activePointer.isDown !== undefined) { // Check if activePointer is a valid pointer
+                this.updateAim(this.input.activePointer.x, this.input.activePointer.y);
+            } else { 
+                console.log("loadNextBubbleToCannon: No active pointer, aiming straight up.");
+                this.updateAim(this.cannon.x, this.cannon.y - 100); 
+            }
+            // Ziellinie auf Kanonenposition zurücksetzen (relativ zur Kanone)
+            this.aimLine.setTo(0, 0, 0, -70); // Aim straight up by default from cannon
+
+            this.prepareNextBubble(); // Prepare the *new* nextBubble for the display and the *next* shot
+
         } else {
-            console.log("No more bubbles to load!");
-            this.canShoot = false;
-            this.aimLine.setVisible(false);
+            console.error("loadNextBubbleToCannon: Still no nextBubble after attempting to prepare. Shooting will be disabled.");
+            this.canShoot = false; 
         }
+        console.log(`loadNextBubbleToCannon: Finished. canShoot=${this.canShoot}, shootingBubble=${this.shootingBubble ? 'exists' : 'null'}, nextBubble=${this.nextBubble ? 'exists' : 'null'}`);
     }
 
     updateAim(pointerX, pointerY) {
@@ -500,24 +620,28 @@ export class BootScene extends Phaser.Scene {
     }
 
     shootBubble(pointerX, pointerY) {
-        if (!this.shootingBubble || this.shootingBubble.isMoving || pointerY >= this.cannon.y) {
+        console.log(`shootBubble called. canShoot: ${this.canShoot}, current shootingBubble valid?: ${!!(this.shootingBubble && this.shootingBubble.gameObject)}`);
+        if (!this.canShoot || !this.shootingBubble || !this.shootingBubble.gameObject) {
+            console.log(`Cannot shoot. canShoot: ${this.canShoot}, shootingBubble valid: ${!!(this.shootingBubble && this.shootingBubble.gameObject)}`);
             return;
         }
 
         this.canShoot = false;
+        console.log("canShoot set to false in shootBubble");
+
         this.shootingBubble.isMoving = true;
         this.aimLine.setVisible(false);
 
-        const angle = this.shooter.calculateAngle(pointerX, pointerY);
-        const velocity = this.shooter.calculateVelocity(angle);
+        // Stelle sicher, dass das Ziel oberhalb der Kanone ist
+        const constrainedY = Math.min(pointerY, this.cannon.y - 1);
+        const angle = Phaser.Math.Angle.Between(this.cannon.x, this.cannon.y, pointerX, constrainedY);
+        
+        const speed = 1000; // Geschwindigkeit der Bubble, ggf. anpassen
 
-        this.shootingBubble.velocityX = velocity.velocityX;
-        this.shootingBubble.velocityY = velocity.velocityY;
+        this.shootingBubble.velocityX = Math.cos(angle) * speed;
+        this.shootingBubble.velocityY = Math.sin(angle) * speed;
 
-        // Nach dem Schuss die Ziellinie auf Kanonenposition zurücksetzen
-        this.aimLine.setTo(0, 0, 0, 0);
-        // Kanonenzeiger auf Standardwinkel setzen (nach oben)
-        this.cannonPointer.rotation = -Math.PI / 2;
+        console.log(`Shooting bubble with velocity: (${this.shootingBubble.velocityX.toFixed(2)}, ${this.shootingBubble.velocityY.toFixed(2)})`);
     }
 
     stopShootingBubble() {
@@ -572,6 +696,7 @@ export class BootScene extends Phaser.Scene {
         // Ziellinie anzeigen und Schießen aktivieren
         this.aimLine.setVisible(true);
         this.canShoot = true;
+        this.updateAim(this.input.activePointer.x, this.input.activePointer.y);
 
         // Start-Text entfernen, falls vorhanden
         if (this.startText) {
@@ -708,6 +833,29 @@ export class BootScene extends Phaser.Scene {
     adjustLayoutForOrientation(isPortrait) {
         const gameWidth = this.sys.game.config.width;
         const gameHeight = this.sys.game.config.height;
+
+        // Recalculate grid columns and xOffset
+        if (this.grid) {
+            const newGridCols = Math.floor((gameWidth - 40) / (BUBBLE_RADIUS * 2));
+            const newXOffset = (gameWidth - (newGridCols * BUBBLE_RADIUS * 2)) / 2;
+
+            this.grid.cols = newGridCols;
+            this.grid.xOffset = newXOffset;
+
+            // Update positions of all bubbles currently in the grid
+            this.grid.forEachBubble((bubble, r, c) => {
+                if (bubble && bubble.gameObject) {
+                    if (c >= newGridCols) {
+                        // If bubble is now outside new narrower grid, destroy it.
+                        bubble.destroy();
+                        this.grid.grid[r][c] = null; 
+                    } else {
+                        const newPos = this.grid.gridToPixel(r, c);
+                        bubble.gameObject.setPosition(newPos.x, newPos.y);
+                    }
+                }
+            });
+        }
         
         // Elemente, die angepasst werden müssen, wenn sie bereits existieren
         if (this.scoreText) {
@@ -744,7 +892,7 @@ export class BootScene extends Phaser.Scene {
         
         // Game Over Linie anpassen
         if (this.gameOverLine) {
-            this.gameOverY = this.grid.yOffset + (10 * BUBBLE_RADIUS * Math.sqrt(3));
+            this.gameOverY = this.grid.yOffset + this.MIN_GROUP_SIZE * BUBBLE_RADIUS * Math.sqrt(3);
             this.gameOverY = Math.min(this.gameOverY, gameHeight - 100);
             this.gameOverLine.setPosition(0, this.gameOverY);
             this.gameOverLine.setTo(0, 0, gameWidth, 0);
@@ -879,4 +1027,5 @@ const PhaserGame = () => {
     return <div ref={gameContainerRef} id="phaser-game-container" style={{width: '100%', height: '100vh'}} />;
 };
 
+export { BootScene };
 export default PhaserGame;

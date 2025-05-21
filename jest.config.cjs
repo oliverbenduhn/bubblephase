@@ -6,6 +6,8 @@ module.exports = {
   },
   moduleNameMapper: {
     '\\.(css|less|scss|sass)$': 'identity-obj-proxy',
-    'phaser3spectorjs': 'identity-obj-proxy' // Hinzugefügt
+    'phaser3spectorjs': 'identity-obj-proxy', // Hinzugefügt
+    // Hinzufügen eines Mocks für SVG-Dateien
+    '\\.(svg)$': '<rootDir>/__mocks__/svgMock.js' 
   }
 };

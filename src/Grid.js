@@ -102,56 +102,125 @@ export class Grid {
     });
   }
 
-  // Checks if a given grid position (row, col) is valid within the grid's bounds
+  // Checks if a grid position is valid
   isValidGridPosition(row, col) {
     return row >= 0 && row < this.rows && col >= 0 && col < this.cols;
   }
 
-  // Initializes the top rows of the grid with random bubbles
-  initializeWithBubbles(numRowsToFill = 3) {
+  // Gets all valid neighbors of a given cell
+  getNeighbors(row, col) {
+    const neighbors = [];
+    const isOddRow = row % 2 !== 0;
+
+    // Define potential neighbor offsets based on hexagonal grid structure
+    // For even rows: (0,-1), (0,1), (-1,0), (-1,1), (1,0), (1,1)
+    // For odd rows:  (0,-1), (0,1), (-1,-1), (-1,0), (1,-1), (1,0)
+    const neighborOffsets = isOddRow ? [
+      { r: 0, c: -1 }, { r: 0, c: 1 },  // Left, Right
+      { r: -1, c: -1 }, { r: -1, c: 0 }, // Top-Left, Top-Right
+      { r: 1, c: -1 }, { r: 1, c: 0 }   // Bottom-Left, Bottom-Right
+    ] : [
+      { r: 0, c: -1 }, { r: 0, c: 1 },  // Left, Right
+      { r: -1, c: 0 }, { r: -1, c: 1 }, // Top-Left, Top-Right
+      { r: 1, c: 0 }, { r: 1, c: 1 }   // Bottom-Left, Bottom-Right
+    ];
+    
+    for (const offset of neighborOffsets) {
+      const neighborRow = row + offset.r;
+      const neighborCol = col + offset.c;
+
+      if (this.isValidGridPosition(neighborRow, neighborCol)) {
+        neighbors.push({ row: neighborRow, col: neighborCol });
+      }
+    }
+    return neighbors;
+  }
+
+
+  // Führt eine Callback-Funktion für jede Bubble im Gitter aus
+  forEachBubble(callback) {
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const bubble = this.grid[row][col];
+        if (bubble) {
+          callback(bubble, row, col);
+        }
+      }
+    }
+  }
+
+  // Initialisiert das Gitter mit einer bestimmten Anzahl von Reihen mit Bubbles
+  initializeWithBubbles(numRowsToFill) {
     const availableColors = Object.values(BUBBLE_COLORS);
     for (let r = 0; r < Math.min(numRowsToFill, this.rows); r++) {
-      for (let c = 0; c < this.cols; c++) {
-        // For odd rows, skip the last column if it would extend beyond the hexagonal pattern
-        if (r % 2 !== 0 && c === this.cols - 1) continue;
-        
+      const colsInThisRow = this.cols - (r % 2 === 0 ? 0 : 1); // Kleine Anpassung für Hex-Optik
+      for (let c = 0; c < colsInThisRow; c++) {
         const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        // Create a new bubble instance without initial position, as addBubble will set it
-        const bubble = new Bubble(this.scene, 0, 0, BUBBLE_RADIUS, randomColor);
-        this.addBubble(r, c, bubble);
+        const { x, y } = this.gridToPixel(r, c);
+        const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, randomColor);
+        bubble.setPosition(x, y); // Explizit die Position setzen
+        bubble.draw(); // Zeichne die Bubble in der Szene
+        this.grid[r][c] = bubble;
       }
     }
   }
 
-  // Iterates over all bubbles in the grid and executes a callback function for each
-  forEachBubble(callback) {
-    for (let r = 0; r < this.rows; r++) {
-      for (let c = 0; c < this.cols; c++) {
-        if (this.grid[r][c]) {
-          callback(this.grid[r][c], r, c);
+  /**
+   * Findet alle Bubbles, die mit der obersten Reihe verbunden sind
+   * @returns {Set<string>} Set von "row-col" Strings für verbundene Bubbles
+   */
+  findConnectedToTop() {
+    const connected = new Set();
+    const stack = [];
+
+    // Starte mit allen Bubbles in der obersten Reihe
+    for (let col = 0; col < this.cols; col++) {
+      if (this.grid[0][col]) {
+        stack.push({ row: 0, col });
+        connected.add(`0-${col}`);
+      }
+    }
+
+    // Tiefensuche, um alle verbundenen Bubbles zu finden
+    while (stack.length > 0) {
+      const current = stack.pop();
+      const neighbors = this.getNeighbors(current.row, current.col);
+
+      for (const neighbor of neighbors) {
+        const key = `${neighbor.row}-${neighbor.col}`;
+        if (!connected.has(key) && this.grid[neighbor.row][neighbor.col]) {
+          connected.add(key);
+          stack.push(neighbor);
         }
       }
     }
+
+    return connected;
   }
 
-  // Findet die unterste Reihe, die mindestens eine Bubble enthält
-  getLowestFilledRow() {
-    for (let r = this.rows - 1; r >= 0; r--) {
-      for (let c = 0; c < this.cols; c++) {
-        if (this.grid[r][c]) {
-          return r;
+  /**
+   * Findet und entfernt alle Bubbles, die nicht mit der obersten Reihe verbunden sind
+   * @returns {Array<{row: number, col: number}>} Array der Positionen der entfernten Bubbles
+   */
+  removeFloatingBubbles() {
+    const connectedToTop = this.findConnectedToTop();
+    const floatingBubbles = [];
+
+    // Finde alle Bubbles, die nicht mit der obersten Reihe verbunden sind
+    for (let row = 0; row < this.rows; row++) {
+      for (let col = 0; col < this.cols; col++) {
+        const key = `${row}-${col}`;
+        if (this.grid[row][col] && !connectedToTop.has(key)) {
+          floatingBubbles.push({ row, col });
         }
       }
     }
-    return 0; // Wenn keine Bubbles gefunden wurden, gib 0 zurück
-  }
 
-  // Checks if a specific row is empty (contains no bubbles)
-  isRowEmpty(row) {
-    if (row < 0 || row >= this.rows) return true; // Invalid row is considered empty
-    for (let c = 0; c < this.cols; c++) {
-      if (this.grid[row][c]) return false; // Found a bubble, row is not empty
+    // Entferne die freischwebenden Bubbles
+    if (floatingBubbles.length > 0) {
+      this.removeBubbles(floatingBubbles);
     }
-    return true; // No bubbles found, row is empty
+
+    return floatingBubbles;
   }
 }

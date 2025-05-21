@@ -1,138 +1,192 @@
-import { BootScene } from './PhaserGame';
+import { MobileOptimization } from './MobileOptimization';
 
-// Mock für Phaser
 jest.mock('phaser', () => ({
-  Scene: class {
-    constructor() {}
-  },
   Math: {
     Angle: {
       Between: jest.fn()
     }
-  },
-  Scale: {
-    RESIZE: 'RESIZE',
-    CENTER_BOTH: 'CENTER_BOTH'
   }
 }));
 
-// Wir müssen die BootScene-Klasse separat testen, da sie in der PhaserGame-Komponente integriert ist
-describe('Mobile Optimierung', () => {
-  
-  // Test-Setup für mobile User-Agent
-  const mockMobileUserAgent = () => {
-    Object.defineProperty(navigator, 'userAgent', {
-      value: 'Mozilla/5.0 (iPhone; CPU iPhone OS 14_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/14.0 Mobile/15E148 Safari/604.1',
-      configurable: true
-    });
+// Hilfs-Factory für interaktive Objekte
+const createInteractiveObject = () => {
+  const obj = {
+    setStrokeStyle: jest.fn().mockReturnThis(),
+    setFillStyle: jest.fn().mockReturnThis(),
+    setInteractive: jest.fn().mockReturnThis(),
+    setPosition: jest.fn().mockReturnThis(),
+    setOrigin: jest.fn().mockReturnThis(),
+    setAlpha: jest.fn().mockReturnThis(),
+    setSize: jest.fn().mockReturnThis(),
+    destroy: jest.fn(),
+    on: jest.fn().mockReturnThis(),
+    setScale: jest.fn().mockReturnThis(),
+    x: 0,
+    y: 0
   };
-  
-  // Test-Setup für Desktop User-Agent
-  const mockDesktopUserAgent = () => {
-    Object.defineProperty(navigator, 'userAgent', {
-      value: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36',
-      configurable: true
-    });
-  };
-  
-  test('sollte korrekt erkennen, ob das Gerät ein Mobilgerät ist', () => {
-    // Mobilen User-Agent simulieren
-    mockMobileUserAgent();
-    
-    // Scene mit Mock-Methoden erstellen
-    const scene = {
-      sys: {
-        game: {
-          config: { width: 800, height: 600 },
-          isPortrait: true,
-          events: { on: jest.fn() }
-        }
-      },
-      add: {
-        text: jest.fn().mockReturnValue({
-          setOrigin: jest.fn().mockReturnThis(),
-          setPosition: jest.fn().mockReturnThis()
-        }),
-        line: jest.fn().mockReturnValue({
-          setVisible: jest.fn().mockReturnThis(),
-          setTo: jest.fn().mockReturnThis(),
-          setLineWidth: jest.fn().mockReturnThis()
-        }),
-        circle: jest.fn().mockReturnValue({
-          setStrokeStyle: jest.fn().mockReturnThis(),
-          setPosition: jest.fn().mockReturnThis()
-        })
-      },
-      input: { on: jest.fn() }
-    };
-    
-    // BootScene erstellen und überprüfen ob mobile Erkennung funktioniert
-    const bootSceneInstance = new BootScene();
-    
-    // Eigenschaften und Methoden zuweisen, die normalerweise in create() gesetzt werden
-    bootSceneInstance.sys = scene.sys;
-    bootSceneInstance.add = scene.add;
-    bootSceneInstance.input = scene.input;
-    
-    // Mobile-Erkennung manuell aufrufen
-    bootSceneInstance.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    
-    // Überprüfen, ob isMobile korrekt gesetzt wurde
-    expect(bootSceneInstance.isMobile).toBe(true);
-    
-    // Desktop User-Agent simulieren und erneut prüfen
-    mockDesktopUserAgent();
-    bootSceneInstance.isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    expect(bootSceneInstance.isMobile).toBe(false);
+  return obj;
+};
+
+// Mock für Phaser.Scene
+const mockScene = {
+  add: {
+    circle: () => createInteractiveObject(),
+    graphics: () => ({
+      lineStyle: () => ({}),
+      beginPath: () => ({}),
+      moveTo: () => ({}),
+      lineTo: () => ({}),
+      arc: () => ({}),
+      strokePath: () => ({}),
+      destroy: jest.fn()
+    }),
+    rectangle: () => {
+      const rect = createInteractiveObject();
+      rect.setOrigin = () => rect;
+      rect.setPosition = () => rect;
+      return rect;
+    }
+  },
+  width: 800,
+  height: 600,
+  tweens: {
+    add: jest.fn().mockReturnValue({
+      play: jest.fn()
+    })
+  },
+  emit: jest.fn()
+};
+
+describe('MobileOptimization', () => {
+  let mobileOpt;
+
+  beforeEach(() => {
+    mobileOpt = new MobileOptimization(mockScene);
   });
-  
-  test('sollte responsive Spielgröße basierend auf Bildschirmgröße berechnen', () => {
-    // Originale window.innerWidth und window.innerHeight sichern
-    const originalInnerWidth = window.innerWidth;
-    const originalInnerHeight = window.innerHeight;
+
+  test('erkennt mobile Geräte korrekt', () => {
+    global.window = Object.create(window);
+    global.window.ontouchstart = () => {};
     
-    // Mock für window.innerWidth und window.innerHeight im Portrait-Modus
-    Object.defineProperty(window, 'innerWidth', { value: 375, configurable: true });
-    Object.defineProperty(window, 'innerHeight', { value: 667, configurable: true });
-    
-    // Testfunktion für calculateGameSize
-    const calculateGameSize = () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-      const isPortrait = height > width;
-      
-      if (isPortrait) {
-        return {
-          width: width,
-          height: Math.min(height, width * 1.5),
-          isPortrait
-        };
-      } else {
-        return {
-          width: Math.min(width, height * 1.5),
-          height: height,
-          isPortrait
-        };
+    const mobileOptWithTouch = new MobileOptimization(mockScene);
+    expect(mobileOptWithTouch.isMobile).toBe(true);
+  });
+
+  test('erstellt Touch-Steuerelemente für mobile Geräte', () => {
+    expect(mobileOpt.touchControls).toBeDefined();
+    expect(mobileOpt.touchControls.left).toBeDefined();
+    expect(mobileOpt.touchControls.right).toBeDefined();
+    expect(mobileOpt.touchControls.shoot).toBeDefined();
+  });
+
+  test('emittiert Events bei Touch-Interaktionen', () => {
+    mobileOpt.handleMove('left');
+    expect(mockScene.emit).toHaveBeenCalledWith('mobileMove', 'left');
+
+    mobileOpt.handleMove('right');
+    expect(mockScene.emit).toHaveBeenCalledWith('mobileMove', 'right');
+
+    mobileOpt.handleShoot();
+    expect(mockScene.emit).toHaveBeenCalledWith('mobileShoot');
+  });
+
+  test('respektiert Mindestgröße für Touch-Buttons', () => {
+    const customMinSize = 60;
+    const mobileOptCustom = new MobileOptimization(mockScene, {
+      minButtonSize: customMinSize
+    });
+    expect(mobileOptCustom.config.minButtonSize).toBe(customMinSize);
+  });
+
+  test('kann Touch-Steuerelemente ein- und ausblenden', () => {
+    mobileOpt.toggleTouchControls(false);
+    mobileOpt.toggleTouchControls(true);
+    // Kein Fehler sollte auftreten
+    expect(true).toBe(true);
+  });
+
+  test('bietet haptisches Feedback wenn verfügbar', () => {
+    // Mock navigator.vibrate
+    const vibrateMock = jest.fn();
+    Object.defineProperty(global.navigator, 'vibrate', {
+      value: vibrateMock,
+      configurable: true
+    });
+
+    mobileOpt.provideFeedback();
+    expect(vibrateMock).toHaveBeenCalledWith(10);
+
+    // Cleanup
+    delete global.navigator.vibrate;
+  });
+
+  test('passt Steuerelemente bei Größenänderung an', () => {
+    const newWidth = 1024;
+    const newHeight = 768;
+    mobileOpt.resize(newWidth, newHeight);
+    // Keine Fehler sollten auftreten
+    expect(true).toBe(true);
+  });
+
+  test('räumt Ressourcen bei Zerstörung auf', () => {
+    mobileOpt.destroy();
+    // Überprüfe, ob keine Fehler auftreten
+    expect(true).toBe(true);
+  });
+
+  test('berechnet Buttongrößen korrekt', () => {
+    // Test für minimale Größe
+    mockScene.width = 200;
+    mockScene.height = 300;
+    let size = mobileOpt.calculateButtonSize();
+    expect(size).toBe(44); // Sollte Mindestgröße sein
+
+    // Test für mittlere Größe
+    mockScene.width = 800;
+    mockScene.height = 600;
+    size = mobileOpt.calculateButtonSize();
+    expect(size).toBeGreaterThan(44);
+    expect(size).toBeLessThan(88);
+
+    // Test für maximale Größe
+    mockScene.width = 2000;
+    mockScene.height = 1500;
+    size = mobileOpt.calculateButtonSize();
+    expect(size).toBe(88);
+  });
+
+  test('berücksichtigt Safe Area Insets', () => {
+    const safeAreaConfig = {
+      safeAreaInsets: {
+        top: 20,
+        right: 10,
+        bottom: 30,
+        left: 10
       }
     };
     
-    // Portrait-Modus testen
-    const portraitSize = calculateGameSize();
-    expect(portraitSize.isPortrait).toBe(true);
-    expect(portraitSize.width).toBe(375);
-    expect(portraitSize.height).toBe(562.5); // 375 * 1.5
+    const mobileOptWithSafeArea = new MobileOptimization(mockScene, safeAreaConfig);
     
-    // Landscape-Modus testen
-    Object.defineProperty(window, 'innerWidth', { value: 667, configurable: true });
-    Object.defineProperty(window, 'innerHeight', { value: 375, configurable: true });
+    const overlay = createInteractiveObject();
+    mobileOptWithSafeArea.touchOverlay = overlay;
     
-    const landscapeSize = calculateGameSize();
-    expect(landscapeSize.isPortrait).toBe(false);
-    expect(landscapeSize.width).toBe(562.5); // 375 * 1.5
-    expect(landscapeSize.height).toBe(375);
+    mobileOptWithSafeArea.resize(800, 600);
     
-    // Zurücksetzen der Werte
-    Object.defineProperty(window, 'innerWidth', { value: originalInnerWidth, configurable: true });
-    Object.defineProperty(window, 'innerHeight', { value: originalInnerHeight, configurable: true });
+    expect(overlay.setPosition).toHaveBeenCalledWith(10, 20);
+    expect(overlay.setSize).toHaveBeenCalledWith(780, 440); // 800-20, (600-50)*0.8
+  });
+
+  test('bietet verbessertes visuelles Feedback', () => {
+    const button = mobileOpt.createTouchButton('left', 100, 100);
+    
+    // Simuliere Hover
+    mobileOpt.handleButtonOver(button);
+    expect(button.setStrokeStyle).toHaveBeenCalled();
+    expect(button.setFillStyle).toHaveBeenCalled();
+    
+    // Simuliere Klick
+    mobileOpt.handleButtonDown(button);
+    expect(button.setStrokeStyle).toHaveBeenCalled();
+    expect(button.setFillStyle).toHaveBeenCalled();
   });
 });

@@ -174,4 +174,71 @@ describe('Grid', () => {
     expect(callback).toHaveBeenCalledWith(mockBubble1, 0, 1);
     expect(callback).toHaveBeenCalledWith(mockBubble2, 2, 3);
   });
+
+  describe('Floating Bubbles', () => {
+    beforeEach(() => {
+      grid = new Grid(mockScene, 5, 5);
+    });
+
+    test('findConnectedToTop erkennt Bubbles, die mit der obersten Reihe verbunden sind', () => {
+      // Erstelle eine verbundene Kette von Bubbles
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+      grid.addBubble(2, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+      
+      // Füge eine isolierte Bubble hinzu
+      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+
+      const connected = grid.findConnectedToTop();
+      
+      // Die drei verbundenen Bubbles sollten erkannt werden
+      expect(connected.has('0-0')).toBe(true);
+      expect(connected.has('1-0')).toBe(true);
+      expect(connected.has('2-0')).toBe(true);
+      // Die isolierte Bubble sollte nicht als verbunden erkannt werden
+      expect(connected.has('3-3')).toBe(false);
+    });
+
+    test('removeFloatingBubbles entfernt nicht verbundene Bubbles', () => {
+      // Erstelle eine verbundene Kette
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+      
+      // Erstelle zwei freischwebende Bubbles
+      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(3, 4, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+
+      const removedBubbles = grid.removeFloatingBubbles();
+
+      // Überprüfe, ob die richtigen Bubbles entfernt wurden
+      expect(removedBubbles).toHaveLength(2);
+      expect(removedBubbles).toContainEqual({ row: 3, col: 3 });
+      expect(removedBubbles).toContainEqual({ row: 3, col: 4 });
+
+      // Überprüfe, ob die verbundenen Bubbles noch da sind
+      expect(grid.getBubble(0, 0)).not.toBeNull();
+      expect(grid.getBubble(1, 0)).not.toBeNull();
+      // Überprüfe, ob die freischwebenden Bubbles entfernt wurden
+      expect(grid.getBubble(3, 3)).toBeNull();
+      expect(grid.getBubble(3, 4)).toBeNull();
+    });
+
+    test('removeFloatingBubbles behandelt ein leeres Gitter korrekt', () => {
+      const removedBubbles = grid.removeFloatingBubbles();
+      expect(removedBubbles).toHaveLength(0);
+    });
+
+    test('findConnectedToTop erkennt komplexe Verbindungen im Hexagonalgitter', () => {
+      // Erstelle eine komplexere verbundene Struktur
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));  // Startpunkt
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE)); // Direkt darunter
+      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN)); // Diagonal
+      
+      const connected = grid.findConnectedToTop();
+      
+      expect(connected.has('0-0')).toBe(true);
+      expect(connected.has('1-0')).toBe(true);
+      expect(connected.has('1-1')).toBe(true);
+    });
+  });
 });
