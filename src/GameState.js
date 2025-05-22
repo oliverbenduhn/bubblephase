@@ -19,4 +19,22 @@ export default class GameState {
   getState() {
     return this.currentState;
   }
+
+  checkGameOver(bubbles, fieldHeight) {
+    // Prüfe, ob eine Bubble den unteren Rand des Spielfelds erreicht hat
+    for (const bubble of bubbles) {
+      if (bubble.y + bubble.radius >= fieldHeight) {
+        this.setState(this.states.GAME_OVER);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  restartGame(initializeFieldCallback) {
+    this.setState(this.states.START);
+    if (typeof initializeFieldCallback === 'function') {
+      initializeFieldCallback();
+    }
+  }
 }

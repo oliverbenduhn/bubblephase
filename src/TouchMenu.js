@@ -58,6 +58,35 @@ export class TouchMenu {
       startY: 0,
       isDragging: false
     };
+:start_line:61
+-------
+:start_line:61
+-------
+// Methode zur Anpassung der UI-Elemente basierend auf Bildschirmgröße und Orientierung
+adjustLayout() {
+  const { width, height } = this.scene.sys.game.config;
+  const isPortrait = height > width;
+
+  // Beispiel: Button-Größe und Position anpassen
+  const buttonHeight = isPortrait ? 80 : 60;
+  const padding = 16;
+  const spacing = 20;
+
+  this.buttons.forEach((button, index) => {
+    if (isPortrait) {
+      button.setPosition(padding, height - (buttonHeight + padding) * (index + 1));
+      button.setFontSize(buttonHeight / 3);
+    } else {
+      button.setPosition(padding + (button.width + spacing) * index, height - buttonHeight - padding);
+      button.setFontSize(buttonHeight / 3);
+    }
+  });
+}
+
+// Methode zum Aktualisieren des UI-Layouts
+updateLayout() {
+  this.adjustLayout();
+}
 
     // Initialisierung
     this.create();
