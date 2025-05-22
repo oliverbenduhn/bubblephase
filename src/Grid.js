@@ -223,4 +223,86 @@ export class Grid {
 
     return floatingBubbles;
   }
+
+  /**
+   * Serialisiert den aktuellen Zustand des Grids in ein einfaches Datenformat.
+   * @returns {Array<Array<Object|null>>} Ein Array, das den Zustand des Grids darstellt.
+   */
+  serialize() {
+    const serializedGrid = [];
+    for (let r = 0; r < this.rows; r++) {
+      serializedGrid[r] = [];
+      for (let c = 0; c < this.cols; c++) {
+        const bubble = this.grid[r][c];
+        if (bubble) {
+          // Speichere nur die notwendigen Daten der Bubble (z.B. Farbe)
+          serializedGrid[r][c] = { color: bubble.color };
+        } else {
+          serializedGrid[r][c] = null;
+        }
+      }
+    }
+    return serializedGrid;
+  }
+
+  /**
+   * Lädt einen Spielstand und rekonstruiert das Grid.
+   * @param {Array<Array<Object|null>>} serializedGrid Der serialisierte Grid-Zustand.
+   */
+  deserialize(serializedGrid) {
+    // Zuerst alle vorhandenen Bubbles zerstören
+    this.forEachBubble((bubble) => {
+      if (bubble && bubble.gameObject) {
+        bubble.destroy();
+      }
+    });
+
+    // Grid leeren
+    for (let r = 0; r < this.rows; r++) {
+      this.grid[r].fill(null);
+    }
+
+    // Grid aus den serialisierten Daten neu aufbauen
+    for (let r = 0; r < serializedGrid.length; r++) {
+      for (let c = 0; c < serializedGrid[r].length; c++) {
+        const bubbleData = serializedGrid[r][c];
+        if (bubbleData) {
+          const { x, y } = this.gridToPixel(r, c);
+          const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, bubbleData.color);
+          bubble.setPosition(x, y);
+          bubble.draw();
+          this.grid[r][c] = bubble;
+        }
+      }
+    }
+  }
+
+  /**
+   * Findet die nächste freie Gitterzelle basierend auf der Position einer Bubble
+   * @param {Object} bubble - Die Bubble mit x und y Koordinaten
+   * @returns {Object|null} - Ein Objekt mit row und col der nächsten freien Zelle oder null, wenn keine gefunden wurde
+   */
+  findNearestFreeCell(bubble) {
+    let nearestCell = null;
+    let minDistance = Infinity;
+
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        if (this.grid[r][c] === null) { // Nur freie Zellen prüfen
+          const cellX = this.xOffset + c * this.cellWidth + (r % 2 === 0 ? 0 : this.bubbleRadius);
+          const cellY = this.yOffset + r * this.cellHeight;
+          const dx = bubble.x - cellX;
+          const dy = bubble.y - cellY;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestCell = { row: r, col: c };
+          }
+        }
+      }
+    }
+
+    return nearestCell;
+  }
 }

@@ -1,9 +1,29 @@
+// filepath: /home/oliverbenduhn/Dokumente/projekte/bubblephase/src/MobileOptimization.test.js
+import Phaser from 'phaser';
 import { MobileOptimization } from './MobileOptimization';
 
+// Mocking the entire Phaser library
 jest.mock('phaser', () => ({
+  GameObjects: {
+    Graphics: jest.fn().mockImplementation(() => {
+      const graphicsMock = {
+        arc: jest.fn(() => graphicsMock),
+        lineStyle: jest.fn(() => graphicsMock),
+        beginPath: jest.fn(() => graphicsMock),
+        strokePath: jest.fn(() => graphicsMock),
+        setFillStyle: jest.fn(() => graphicsMock),
+        fillCircle: jest.fn(() => graphicsMock),
+        strokeCircle: jest.fn(() => graphicsMock),
+      };
+      return graphicsMock;
+    }),
+  },
+  Scale: {
+    on: jest.fn((event, callback) => callback()),
+  },
   Math: {
     Angle: {
-      Between: jest.fn()
+      Between: jest.fn(() => 0)
     }
   }
 }));
@@ -31,15 +51,19 @@ const createInteractiveObject = () => {
 const mockScene = {
   add: {
     circle: () => createInteractiveObject(),
-    graphics: () => ({
-      lineStyle: () => ({}),
-      beginPath: () => ({}),
-      moveTo: () => ({}),
-      lineTo: () => ({}),
-      arc: () => ({}),
-      strokePath: () => ({}),
-      destroy: jest.fn()
-    }),
+    graphics: () => {
+      let graphicsMock = {};
+      graphicsMock = {
+        lineStyle: jest.fn().mockReturnValue(graphicsMock),
+        beginPath: jest.fn().mockReturnValue(graphicsMock),
+        moveTo: jest.fn().mockReturnValue(graphicsMock),
+        lineTo: jest.fn().mockReturnValue(graphicsMock),
+        arc: jest.fn().mockReturnValue(graphicsMock),
+        strokePath: jest.fn().mockReturnValue(graphicsMock),
+        destroy: jest.fn()
+      };
+      return graphicsMock;
+    },
     rectangle: () => {
       const rect = createInteractiveObject();
       rect.setOrigin = () => rect;
@@ -54,7 +78,22 @@ const mockScene = {
       play: jest.fn()
     })
   },
-  emit: jest.fn()
+  emit: jest.fn(),
+  scale: {
+    width: 800,
+    height: 600,
+    on: jest.fn((event, callback) => {
+      if (event === 'resize') {
+        callback();
+      }
+    })
+  },
+  children: {
+    list: [
+      { isButton: true, width: 100, setScale: jest.fn(), setPosition: jest.fn() },
+      { isButton: false }
+    ]
+  }
 };
 
 describe('MobileOptimization', () => {
@@ -188,5 +227,18 @@ describe('MobileOptimization', () => {
     mobileOpt.handleButtonDown(button);
     expect(button.setStrokeStyle).toHaveBeenCalled();
     expect(button.setFillStyle).toHaveBeenCalled();
+  });
+
+  test('should adjust UI elements based on screen size', () => {
+    mobileOpt.adjustUIElements();
+
+    const button = mockScene.children.list[0];
+    expect(button.setScale).toHaveBeenCalled();
+    expect(button.setPosition).toHaveBeenCalled();
+  });
+
+  test('should monitor screen size changes', () => {
+    mobileOpt.monitorScreenSize();
+    expect(mockScene.scale.on).toHaveBeenCalledWith('resize', expect.any(Function));
   });
 });

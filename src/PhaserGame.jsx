@@ -5,6 +5,7 @@ import { Bubble } from './Bubble'; // Geändert von 'import Bubble from "./Bubbl
 import { Shooter } from './Shooter';
 import { Collision } from './Collision';
 import { MobileOptimization } from './MobileOptimization';
+import { TouchMenu } from './TouchMenu';
 import { BUBBLE_RADIUS, BUBBLE_COLORS } from './config'; // Annahme, dass config.js existiert oder diese hier definiert sind
 import bubbleParticlePath from './assets/bubble-particle.svg'; // SVG importieren
 
@@ -22,12 +23,14 @@ class BootScene extends Phaser.Scene {
         this.shooter = null;
         this.scoreText = null;
         this.score = 0;
+        this.level = 1;
         this.MIN_GROUP_SIZE = 3; // Mindestgröße für eine Gruppe gleichfarbiger Bubbles
         
         // Spielzustände
         this.gameStates = {
             START: 'start',
             PLAYING: 'playing',
+            PAUSED: 'paused',
             GAME_OVER: 'gameOver'
         };
         this.currentState = this.gameStates.START;
@@ -40,6 +43,7 @@ class BootScene extends Phaser.Scene {
         
         // Anzeige für Touch-Steuerung
         this.touchIndicator = null;
+        this.touchMenu = null;
         this.isMobile = false;
     }
 
@@ -63,41 +67,32 @@ class BootScene extends Phaser.Scene {
                            this.sys.game.isPortrait : 
                            (gameHeight > gameWidth);
         
-        // Layout basierend auf Orientierung anpassen
-        this.adjustLayoutForOrientation(isPortrait);
-        
         // Event Listener für Orientierungsänderungen
         this.sys.game.events.on('orientationchange', (isPortrait) => {
             this.adjustLayoutForOrientation(isPortrait);
         });
 
-        // Grid initialisieren
+        // Grid nur initialisieren, aber noch nicht füllen
         const gridRows = 12;
-        // Berechne die maximale Anzahl von Spalten basierend auf der Spielbreite
-        const gridCols = Math.floor((gameWidth - 40) / (BUBBLE_RADIUS * 2)); // 40px Gesamtabstand (20px pro Seite)
-        const xOffset = (gameWidth - (gridCols * BUBBLE_RADIUS * 2)) / 2; // Zentriere das Grid horizontal
+        const gridCols = Math.floor((gameWidth - 40) / (BUBBLE_RADIUS * 2));
+        const xOffset = (gameWidth - (gridCols * BUBBLE_RADIUS * 2)) / 2;
         const yOffset = 50;
 
-        console.log(`Initialisiere Grid mit ${gridCols} Spalten bei ${gameWidth}px Breite`);
         this.grid = new Grid(this, gridRows, gridCols, xOffset, yOffset);
-        this.grid.initializeWithBubbles(Math.ceil(gridRows * 0.5)); // Fülle die Hälfte des Grids
-        this.grid.forEachBubble((bubble, row, col) => {
-            bubble.draw();
-        });
 
-        // Game Over Linie definieren (unterhalb der untersten Reihe)
+        // Game Over Linie definieren (wird erst später sichtbar)
         const rowHeight = BUBBLE_RADIUS * Math.sqrt(3);
         this.gameOverY = this.grid.yOffset + (this.grid.rows * rowHeight) + rowHeight / 2;
         
-        // Game Over Linie erstellen
         this.gameOverLine = this.add.line(
-            0, this.gameOverY,           // x, y Position der Linie (Startpunkt)
-            0, 0,   // Startpunkt der Linie relativ zur Position
-            gameWidth, 0,  // Endpunkt der Linie relativ zur Position
-            0xff0000, 1    // Farbe (rot) und volle Deckkraft
+            0, this.gameOverY,
+            0, 0,
+            gameWidth, 0,
+            0xff0000, 1
         );
-        this.gameOverLine.setOrigin(0, 0); // Ursprung links oben setzen
+        this.gameOverLine.setOrigin(0, 0);
         this.gameOverLine.setLineWidth(4);
+        this.gameOverLine.setVisible(false);
 
         // Kanone initialisieren
         const cannonX = gameWidth / 2;
@@ -110,10 +105,10 @@ class BootScene extends Phaser.Scene {
         // Shooter initialisieren
         this.shooter = new Shooter(this, cannonX, cannonY);
 
-        // Ziellinie initialisieren
+        // Ziellinie initialisieren (unsichtbar bis Spielstart)
         this.aimLine = this.add.line(cannonX, cannonY, 0, 0, 0, -70, 0xffffff, 0.5);
         this.aimLine.setOrigin(0,0);
-        this.aimLine.setVisible(false); // Initial ausblenden
+        this.aimLine.setVisible(false);
         this.aimLine.setLineWidth(3);
 
         // Start-Button erstellen
@@ -154,9 +149,9 @@ class BootScene extends Phaser.Scene {
         this.startButton = { graphics: buttonGraphics, text: buttonText, zone: buttonZone };
 
         // Score-Anzeige
-        this.scoreText = this.add.text(gameWidth - 150, 10, 'Score: 0', { 
-            fill: '#fff', 
-            fontSize: '18px' 
+        this.scoreText = this.add.text(10, 50, `Score: ${this.score}`, {
+            fontSize: '20px',
+            fill: '#fff'
         });
 
         // Anzeige für die nächste Bubble
@@ -228,11 +223,15 @@ class BootScene extends Phaser.Scene {
         });
         
         // Mobile-Optimierungen initialisieren
-        this.mobileControls = new MobileOptimization(this, {
-            minButtonSize: 50,
-            hapticFeedback: true,
-            showTouchControls: true
-        });
+        this.mobileOptimization = new MobileOptimization(this);
+        this.mobileOptimization.adjustUIElements();
+        this.mobileOptimization.monitorScreenSize();
+
+        // Touch-optimierte Menüs erstellen
+        this.setupTouchMenus();
+        
+        // Tastaturbedienung für Desktop-Spieler einrichten
+        this.setupKeyboardControls();
 
         // Event-Listener für mobile Steuerung
         this.events.on('mobileMove', (direction) => {
@@ -254,29 +253,62 @@ class BootScene extends Phaser.Scene {
         // Game Over Linie ist bereits erstellt worden
 
         // Erstelle ein Partikelsystem für Bubble-Explosionen
-        // Zuerst den Manager erstellen, der die Textur 'bubble' verwendet
-        this.bubbleParticleManager = this.add.particles('bubble');
-        if (this.bubbleParticleManager && typeof this.bubbleParticleManager.createEmitter === 'function') { // Zusätzliche Prüfung
-            this.bubbleParticleManager.setDepth(1); // Tiefe auf dem Manager setzen
-            
-            // Dann den Emitter von diesem Manager erstellen
-            this.bubbleExplosionEmitter = this.bubbleParticleManager.createEmitter({
+        this.bubbleParticles = this.add.particles({
+            key: 'bubble',
+            config: {
                 lifespan: 300,
-                speed: { min: -150, max: 150 }, // Geschwindigkeit angepasst
+                speed: { min: -150, max: 150 },
                 angle: { min: 0, max: 360 },
-                scale: { start: 0.3, end: 0 }, // Skalierung angepasst
+                scale: { start: 0.3, end: 0 },
                 alpha: { start: 1, end: 0 },
                 blendMode: 'ADD',
-                on: false // Wichtig: Emitter startet inaktiv und wird manuell ausgelöst
+                active: false
+            }
+        });
+        this.bubbleParticles.setDepth(1);
+
+        // Spielzustand-Logik
+        this.events.on('startGame', () => {
+            this.currentState = this.gameStates.PLAYING;
+            this.score = 0;
+            this.scoreText.setText(`Score: ${this.score}`);
+            if (this.gameOverText) this.gameOverText.setVisible(false);
+            if (this.restartButton) this.restartButton.setVisible(false);
+        });
+
+        this.events.on('gameOver', () => {
+            this.currentState = this.gameStates.GAME_OVER;
+            this.gameOverText = this.add.text(gameWidth / 2, gameHeight / 2, 'Game Over', {
+                fontSize: '32px',
+                fill: '#f00'
+            }).setOrigin(0.5);
+            this.restartButton = this.add.text(gameWidth / 2, gameHeight / 2 + 50, 'Restart', {
+                fontSize: '24px',
+                fill: '#0f0'
+            }).setOrigin(0.5).setInteractive();
+
+            this.restartButton.on('pointerdown', () => {
+                this.events.emit('startGame');
             });
-        } else {
-            console.error("Failed to create bubbleParticleManager or createEmitter is not a function. Ensure 'bubble' texture is loaded and Phaser version is compatible.", this.bubbleParticleManager);
-        }
+        });
+        
+        // Tastatursteuerung einrichten
+        this.setupKeyboardControls();
     }
 
     update(time, delta) {
+        // Überprüfe, ob das Spiel pausiert ist
+        if (this.currentState === this.gameStates.PAUSED) {
+            return; // Keine Aktualisierung, wenn pausiert
+        }
+        
         // Überprüfe Game-Over-Zustand am Anfang jedes Updates
         if (this.checkGameOver()) {
+            // Zeige Game Over Menü, wenn auf einem Mobilgerät
+            if (this.isMobile && this.gameOverMenu && this.currentState === this.gameStates.GAME_OVER) {
+                this.showGameOverMenu();
+                this.currentState = this.gameStates.GAME_OVER + '_MENU'; // Verhindere mehrfaches Aufrufen
+            }
             return; // Keine weitere Verarbeitung, wenn das Spiel vorbei ist
         }
 
@@ -338,6 +370,9 @@ class BootScene extends Phaser.Scene {
         // Stoppe die Bubble-Bewegung
         this.stopShootingBubble();
         
+        // Bereite die nächste Bubble vor, bevor wir die aktuelle entfernen
+        this.prepareNextBubble();
+        
         // Finde die nächste freie Zelle
         const nearestEmptyCell = Collision.findNearestEmptyCell(this.grid, this.shootingBubble);
         
@@ -363,6 +398,9 @@ class BootScene extends Phaser.Scene {
     handleBubbleAtTopPosition() {
         console.log("handleBubbleAtTopPosition called"); // ADDED LOG
         this.stopShootingBubble();
+        
+        // Bereite die nächste Bubble vor, bevor wir die aktuelle entfernen
+        this.prepareNextBubble();
         
         // Berechne die nächste Grid-Position basierend auf der X-Koordinate
         const col = Math.round((this.shootingBubble.x - this.grid.xOffset) / (BUBBLE_RADIUS * 2));
@@ -561,15 +599,14 @@ class BootScene extends Phaser.Scene {
             this.shootingBubble = null;
         }
 
+        // Wenn keine nextBubble vorbereitet wurde, tue dies jetzt
         if (!this.nextBubble) {
-            console.warn("loadNextBubbleToCannon: this.nextBubble was null. Attempting to prepare a new one.");
-            this.prepareNextBubble(); 
+            console.warn("loadNextBubbleToCannon: No nextBubble found. Preparing a new one.");
+            this.prepareNextBubble();
         }
 
         if (this.nextBubble) {
-            this.shootingBubble = this.nextBubble; 
-            this.nextBubble = null; // Crucial: Clear this.nextBubble as it's now in the cannon
-
+            this.shootingBubble = this.nextBubble;
             this.shootingBubble.setPosition(this.cannon.x, this.cannon.y);
             this.shootingBubble.draw();
             this.shootingBubble.isMoving = false;
@@ -588,8 +625,10 @@ class BootScene extends Phaser.Scene {
             }
             // Ziellinie auf Kanonenposition zurücksetzen (relativ zur Kanone)
             this.aimLine.setTo(0, 0, 0, -70); // Aim straight up by default from cannon
-
-            this.prepareNextBubble(); // Prepare the *new* nextBubble for the display and the *next* shot
+            
+            // nextBubble nullen und neue vorbereiten NACHDEM wir die shootingBubble gesetzt haben
+            this.nextBubble = null;
+            this.prepareNextBubble();
 
         } else {
             console.error("loadNextBubbleToCannon: Still no nextBubble after attempting to prepare. Shooting will be disabled.");
@@ -683,7 +722,15 @@ class BootScene extends Phaser.Scene {
     // Startet das Spiel aus dem START-Zustand
     startGame() {
         console.log('Starte Spiel');
-        this.currentState = this.gameStates.PLAYING;
+        
+        // Grid mit Bubbles füllen
+        this.grid.initializeWithBubbles(Math.ceil(this.grid.rows * 0.5));
+        this.grid.forEachBubble((bubble) => {
+            bubble.draw();
+        });
+        
+        // Game Over Linie vorbereiten
+        this.gameOverLine.setVisible(true);
         
         // Start-Button entfernen
         if (this.startButton) {
@@ -693,16 +740,23 @@ class BootScene extends Phaser.Scene {
             this.startButton = null;
         }
         
-        // Ziellinie anzeigen und Schießen aktivieren
-        this.aimLine.setVisible(true);
-        this.canShoot = true;
-        this.updateAim(this.input.activePointer.x, this.input.activePointer.y);
-
         // Start-Text entfernen, falls vorhanden
         if (this.startText) {
             this.startText.destroy();
             this.startText = null;
         }
+        
+        // Spielzustand setzen und erste Bubble vorbereiten
+        this.currentState = this.gameStates.PLAYING;
+        this.prepareNextBubble();
+        this.loadNextBubbleToCannon();
+        
+        // Ziellinie anzeigen, aber noch nicht aktivieren
+        this.aimLine.setVisible(true);
+        this.canShoot = true;
+        
+        // Auf die nächste Bewegung des Pointers warten, statt sofort zu zielen
+        this.aimLine.setTo(0, 0, 0, -70);
     }
 
     // Prüft, ob das Spiel verloren ist (Bubbles erreichen die Game-Over-Linie)
@@ -937,95 +991,365 @@ class BootScene extends Phaser.Scene {
             }
         }
     }
-}
 
-const PhaserGame = () => {
-    const gameContainerRef = useRef(null);
-    const gameInstanceRef = useRef(null);
+    /**
+     * Initialisiert die Touch-optimierten Menüs für mobile Geräte
+     */
+    setupTouchMenus() {
+        // Erstelle TouchMenu nur wenn auf einem mobilen Gerät oder im Debug-Modus
+        if (!this.isMobile && !window.location.href.includes('debug=true')) return;
+        
+        // Menü mit den Spieloptionen erstellen
+        this.touchMenu = new TouchMenu(this, {
+            buttonHeight: 70,
+            padding: 20,
+            backgroundColor: 0x000000,
+            backgroundAlpha: 0.8,
+            buttonColor: 0x444444,
+            buttonActiveColor: 0x666666,
+            textSize: 24
+        });
+        
+        // Hauptmenü-Einträge definieren
+        const menuItems = [
+            { 
+                text: 'Fortsetzen', 
+                callback: () => {
+                    this.currentState = this.gameStates.PLAYING;
+                    this.touchMenu.close();
+                }
+            },
+            { 
+                text: 'Neues Spiel', 
+                callback: () => {
+                    this.scene.restart();
+                }
+            },
+            { 
+                text: 'Steuerung', 
+                callback: () => {
+                    this.showControlsHelp();
+                }
+            },
+            { 
+                text: 'Ton ' + (this.sound.mute ? 'An' : 'Aus'), 
+                callback: () => {
+                    this.sound.mute = !this.sound.mute;
+                    // Text aktualisieren
+                    this.touchMenu.buttons[3].text.setText('Ton ' + (this.sound.mute ? 'An' : 'Aus'));
+                }
+            }
+        ];
+        
+        // Pausemenü mit Pausebutton erstellen
+        this.touchMenu.createPauseMenu(menuItems);
+        
+        // Event-Handler für Öffnen/Schließen
+        this.touchMenu.onOpen = () => {
+            // Spiel pausieren
+            this.currentState = this.gameStates.PAUSED;
+        };
+        
+        this.touchMenu.onClose = () => {
+            // Spiel fortsetzen, wenn wir nicht im Game Over-Zustand sind
+            if (this.currentState === this.gameStates.PAUSED) {
+                this.currentState = this.gameStates.PLAYING;
+            }
+        };
+        
+        // Erstelle einen speziellen Game Over-Dialog
+        this.setupGameOverMenu();
+        
+        // Menü initial ausblenden
+        this.touchMenu.close();
+    }
     
-    // Responsive Spielgröße berechnen
-    const calculateGameSize = () => {
-        const width = window.innerWidth;
-        const height = window.innerHeight;
+    /**
+     * Erstellt ein spezielles Menü für den Game Over-Zustand
+     */
+    setupGameOverMenu() {
+        this.gameOverMenu = new TouchMenu(this, {
+            width: this.width * 0.8,
+            buttonHeight: 70,
+            backgroundColor: 0x000000,
+            backgroundAlpha: 0.9,
+            buttonColor: 0x444444,
+            buttonActiveColor: 0x666666,
+            textSize: 24,
+            closeOnOutsideClick: false,
+            swipeToClose: false
+        });
+        
+        // Füge einen Titel hinzu
+        const gameOverText = this.add.text(
+            0, -100, 'GAME OVER', 
+            {
+                fontFamily: 'Arial',
+                fontSize: 40,
+                fill: '#ff0000',
+                align: 'center'
+            }
+        );
+        gameOverText.setOrigin(0.5, 0.5);
+        this.gameOverMenu.container.add(gameOverText);
+        
+        // Füge Punktestand hinzu
+        this.finalScoreText = this.add.text(
+            0, -40, 'Punktestand: 0', 
+            {
+                fontFamily: 'Arial',
+                fontSize: 28,
+                fill: '#ffffff',
+                align: 'center'
+            }
+        );
+        this.finalScoreText.setOrigin(0.5, 0.5);
+        this.gameOverMenu.container.add(this.finalScoreText);
+        
+        // Füge Buttons hinzu
+        this.gameOverMenu.addButton('Neues Spiel', () => {
+            this.scene.restart();
+        });
+        
+        this.gameOverMenu.addButton('Hauptmenü', () => {
+            // Implementierung für Zurück zum Hauptmenü
+            console.log('Zurück zum Hauptmenü');
+        });
+        
+        // Initial ausblenden
+        this.gameOverMenu.container.setVisible(false);
+    }
+    
+    /**
+     * Zeigt eine Hilfe zur Touch-Steuerung an
+     */
+    showControlsHelp() {
+        // Erstelle ein Hilfe-Overlay
+        const helpMenu = new TouchMenu(this, {
+            width: this.width * 0.9,
+            buttonHeight: 60,
+            backgroundColor: 0x000000,
+            backgroundAlpha: 0.95
+        });
+        
+        // Füge Hilfetext hinzu
+        const helpTitle = this.add.text(
+            0, -120, 'STEUERUNG', 
+            {
+                fontFamily: 'Arial',
+                fontSize: 30,
+                fill: '#ffffff',
+                align: 'center'
+            }
+        );
+        helpTitle.setOrigin(0.5, 0.5);
+        helpMenu.container.add(helpTitle);
+        
+        const helpText = this.add.text(
+            0, -50, 
+            'Links/Rechts: Bewege mit den Tasten\n\n' +
+            'Zielen: Tippe auf den Bildschirm\n\n' +
+            'Schießen: Nutze den Schuss-Button\n\n' +
+            'Pause: Tippe auf den Pause-Button',
+            {
+                fontFamily: 'Arial',
+                fontSize: 20,
+                fill: '#ffffff',
+                align: 'center'
+            }
+        );
+        helpText.setOrigin(0.5, 0.5);
+        helpMenu.container.add(helpText);
+        
+        // Füge OK-Button hinzu
+        helpMenu.addButton('OK', () => {
+            helpMenu.close();
+            // Nach einer kurzen Verzögerung das Hauptmenü wieder öffnen
+            setTimeout(() => {
+                if (this.currentState === this.gameStates.PAUSED) {
+                    this.touchMenu.open();
+                }
+            }, 300);
+        });
+        
+        // Zeige das Hilfemenü an
+        helpMenu.open();
+        
+        // Schließe das Hauptmenü
+        this.touchMenu.close();
+    }
+    
+    /**
+     * Zeigt das Game Over-Menü mit dem endgültigen Punktestand
+     */
+    showGameOverMenu() {
+        if (!this.gameOverMenu) return;
+        
+        // Aktualisiere den Punktestand
+        this.finalScoreText.setText(`Punktestand: ${this.score}`);
+        
+        // Zeige das Menü an
+        this.gameOverMenu.open();
+    }
+    
+    /**
+     * Aktualisiert die UI-Elemente bei Bildschirmgrößenänderungen
+     */
+    resize(width, height) {
+        console.log(`Resize: ${width}x${height}`);
+        
+        // Mobile-Optimierungen aktualisieren
+        if (this.mobileOptimization) {
+            this.mobileOptimization.resize(width, height);
+        }
+        
+        // Touch-Menüs aktualisieren
+        if (this.touchMenu) {
+            this.touchMenu.resize(width, height);
+        }
+        
+        if (this.gameOverMenu) {
+            this.gameOverMenu.resize(width, height);
+        }
+        
+        // Spiel-UI-Elemente anpassen
+        this.updateGameUI(width, height);
+    }
+    
+    /**
+     * Aktualisiert die Spiel-UI-Elemente basierend auf der Bildschirmgröße
+     */
+    updateGameUI(width, height) {
         const isPortrait = height > width;
         
-        // Im Portrait-Modus nehmen wir die volle Breite und proportionale Höhe
-        // Im Landscape-Modus nehmen wir die volle Höhe und proportionale Breite
+        // Anpassen der Spielelemente basierend auf der Orientierung
         if (isPortrait) {
-            return {
-                width: width,
-                height: Math.min(height, width * 1.5), // Verhältnis 2:3
-                isPortrait
-            };
+            // Portrait-Modus
+            if (this.scoreText) {
+                this.scoreText.setPosition(width / 2, 40);
+            }
+            
+            if (this.gameOverText) {
+                this.gameOverText.setPosition(width / 2, height / 3);
+            }
+            
+            if (this.restartButton) {
+                this.restartButton.setPosition(width / 2, height / 2);
+            }
+            
+            // Anpassen des Spielfelds und des Schützen
+            if (this.grid) {
+                // Skaliere das Grid für Portrait-Modus
+                this.grid.setScale(Math.min(1, width / (BUBBLE_RADIUS * 16)));
+            }
+            
+            if (this.cannon) {
+                this.cannon.setPosition(width / 2, height - 50);
+            }
         } else {
-            return {
-                width: Math.min(width, height * 1.5), // Verhältnis 3:2
-                height: height,
-                isPortrait
-            };
+            // Landscape-Modus
+            if (this.scoreText) {
+                this.scoreText.setPosition(width - 100, 40);
+            }
+            
+            if (this.gameOverText) {
+                this.gameOverText.setPosition(width / 2, height / 3);
+            }
+            
+            if (this.restartButton) {
+                this.restartButton.setPosition(width / 2, height / 2);
+            }
+            
+            // Anpassen des Spielfelds und des Schützen im Landscape-Modus
+            if (this.grid) {
+                // Skaliere das Grid für Landscape-Modus
+                this.grid.setScale(Math.min(1, height / (BUBBLE_RADIUS * 16)));
+            }
+            
+            if (this.cannon) {
+                this.cannon.setPosition(width / 2, height - 50);
+            }
         }
-    };
+    }
+    
+    /**
+     * Fügt Methoden zur Unterstützung von Tastatur-Eingaben hinzu
+     */
+    setupKeyboardControls() {
+        // ESC-Taste für Pause/Menü
+        this.input.keyboard.on('keydown-ESC', () => {
+            if (this.currentState === this.gameStates.PLAYING) {
+                this.currentState = this.gameStates.PAUSED;
+                if (this.touchMenu) {
+                    this.touchMenu.open();
+                }
+            } else if (this.currentState === this.gameStates.PAUSED) {
+                this.currentState = this.gameStates.PLAYING;
+                if (this.touchMenu) {
+                    this.touchMenu.close();
+                }
+            }
+        });
+        
+        // Pfeiltasten für Bewegung des Schützen
+        this.input.keyboard.on('keydown-LEFT', () => {
+            if (this.currentState === this.gameStates.PLAYING) {
+                this.shooter.moveLeft();
+            }
+        });
+        
+        this.input.keyboard.on('keydown-RIGHT', () => {
+            if (this.currentState === this.gameStates.PLAYING) {
+                this.shooter.moveRight();
+            }
+        });
+        
+        // Leertaste zum Schießen
+        this.input.keyboard.on('keydown-SPACE', () => {
+            if (this.currentState === this.gameStates.PLAYING && this.canShoot) {
+                const angle = this.shooter.getAngle();
+                const radians = Phaser.Math.DegToRad(angle - 90);
+                const targetX = this.cannon.x + Math.cos(radians) * 100;
+                const targetY = this.cannon.y + Math.sin(radians) * 100;
+                this.shootBubble(targetX, targetY);
+            }
+        });
+    }
+}
+
+// React-Komponente für das Phaser-Spiel
+function PhaserGame() {
+    const gameRef = useRef(null);
 
     useEffect(() => {
-        if (gameContainerRef.current && !gameInstanceRef.current) {
-            const { width, height, isPortrait } = calculateGameSize();
-            
-            const config = {
-                type: Phaser.AUTO,
-                width: width,
-                height: height,
-                parent: gameContainerRef.current,
-                scene: [BootScene],
-                backgroundColor: '#1a1a1a',
-                input: {
-                    touch: {
-                        capture: true,
-                        preventDefault: false // Erlaube Standard-Touch-Aktionen wenn notwendig
-                    }
-                },
-                scale: {
-                    mode: Phaser.Scale.RESIZE, // Automatische Größenanpassung
-                    autoCenter: Phaser.Scale.CENTER_BOTH // Zentriere das Spiel
-                },
-                // Orientierung als Eigenschaft für die Szenen verfügbar machen
-                callbacks: {
-                    postBoot: (game) => {
-                        game.isPortrait = isPortrait;
-                    }
+        // Phaser-Spielkonfiguration
+        const config = {
+            type: Phaser.AUTO,
+            parent: gameRef.current,
+            width: window.innerWidth,
+            height: window.innerHeight,
+            backgroundColor: '#000000',
+            scene: BootScene,
+            physics: {
+                default: 'arcade',
+                arcade: {
+                    gravity: { y: 0 },
+                    debug: false
                 }
-            };
-
-            gameInstanceRef.current = new Phaser.Game(config);
-        }
-
-        // Event Listener für Orientierungsänderungen und Größenänderungen
-        const handleResize = () => {
-            if (gameInstanceRef.current) {
-                const { width, height, isPortrait } = calculateGameSize();
-                gameInstanceRef.current.scale.resize(width, height);
-                gameInstanceRef.current.isPortrait = isPortrait;
-                
-                // Eine benutzerdefinierte Event-Emission für Orientierungsänderungen
-                gameInstanceRef.current.events.emit('orientationchange', isPortrait);
             }
         };
 
-        window.addEventListener('resize', handleResize);
-        window.addEventListener('orientationchange', handleResize);
+        // Erstelle eine neue Phaser-Spielinstanz
+        const game = new Phaser.Game(config);
 
+        // Cleanup beim Unmounten
         return () => {
-            if (gameInstanceRef.current) {
-                gameInstanceRef.current.destroy(true);
-                gameInstanceRef.current = null;
-                console.log('Phaser game destroyed');
-            }
-            window.removeEventListener('resize', handleResize);
-            window.removeEventListener('orientationchange', handleResize);
+            game.destroy(true);
         };
     }, []);
 
-    return <div ref={gameContainerRef} id="phaser-game-container" style={{width: '100%', height: '100vh'}} />;
-};
+    return <div ref={gameRef} />;
+}
 
-export { BootScene };
-export default PhaserGame;
+export { BootScene };  // Exportiere die Szene für Tests
+export default PhaserGame;  // Exportiere die React-Komponente als default

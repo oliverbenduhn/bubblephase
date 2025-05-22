@@ -26,6 +26,7 @@ export class MobileOptimization {
     this.lastTouchTime = 0;
     this.updateSafeArea();
     this.setupTouchControls();
+    this.monitorScreenSize();
   }
 
   /**
@@ -320,6 +321,52 @@ export class MobileOptimization {
     this.touchOverlay
       .setPosition(this.config.safeAreaInsets.left, this.config.safeAreaInsets.top)
       .setSize(safeWidth, safeHeight * 0.8);
+  }
+
+  /**
+   * Passt die UI-Elemente basierend auf der Bildschirmgröße an
+   */
+  adjustUIElements() {
+    const { width, height } = this.scene.scale;
+    const isPortrait = height > width;
+
+    // Beispiel: Anpassung der Button-Größe
+    const buttonSize = Math.max(
+      this.config.minButtonSize,
+      Math.min(this.config.maxButtonSize, Math.min(width, height) * 0.1)
+    );
+
+    // Beispiel: Layout-Logik für Portrait- und Landscape-Modus
+    // Prüfe, ob children.list existiert (für Tests)
+    if (!this.scene.children || !this.scene.children.list) {
+      // Im Test-Modus, keine UI-Anpassungen vornehmen
+      return;
+    }
+
+    if (isPortrait) {
+      this.scene.children.list.forEach((child) => {
+        if (child.isButton) {
+          child.setScale(buttonSize / child.width);
+          child.setPosition(width / 2, height - buttonSize * 2);
+        }
+      });
+    } else {
+      this.scene.children.list.forEach((child) => {
+        if (child.isButton) {
+          child.setScale(buttonSize / child.width);
+          child.setPosition(width - buttonSize * 2, height / 2);
+        }
+      });
+    }
+  }
+
+  /**
+   * Überwacht Änderungen der Bildschirmgröße und passt die UI an
+   */
+  monitorScreenSize() {
+    this.scene.scale.on('resize', () => {
+      this.adjustUIElements();
+    });
   }
 
   /**
