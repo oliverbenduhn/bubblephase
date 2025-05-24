@@ -354,15 +354,16 @@ class BootScene extends Phaser.Scene {
             this.collider.destroy();
             this.collider = null;
         }
-        this.physics.world.removeCollider(this.shootingBubble.gameObject);
+        // Removed: this.physics.world.removeCollider(this.shootingBubble.gameObject); // This might be causing issues
         
         // Kollision mit Grid-Bubbles prüfen
         const gridBubbles = this.grid.getAllBubbleObjects();
         console.log("Grid bubbles found for collision:", gridBubbles.length);
         if (gridBubbles.length > 0) {
-            this.collider = this.physics.add.overlap(this.shootingBubble.gameObject, gridBubbles, (shootingBubble, hitBubble) => {
+            this.collider = this.physics.add.overlap(this.shootingBubble.gameObject, gridBubbles, (gameObject, hitBubbleGameObject) => {
                 console.log("🔴 Grid collision detected between shooting bubble and grid bubble");
-                this.handleBubbleCollision(shootingBubble, hitBubble);
+                // Pass the Bubble instance directly to the handler
+                this.handleBubbleCollision(this.shootingBubble, hitBubbleGameObject);
             });
         }
         
@@ -402,46 +403,74 @@ class BootScene extends Phaser.Scene {
     }
     
     handleBubbleCollision(shootingBubble, gridBubble) {
-        // Verhindere mehrfache Aufrufe der Kollisionsbehandlung
-        if (this.isAttaching) {
-            console.log("⚠️ Already attaching bubble, ignoring duplicate collision");
-            return;
+        try {
+            console.log("DEBUG: isAttaching at very start of handleBubbleCollision:", this.isAttaching); // Moved this line
+            // Verhindere mehrfache Aufrufe der Kollisionsbehandlung
+            if (this.isAttaching) {
+                console.log("⚠️ Already attaching bubble, ignoring duplicate collision");
+                return;
+            }
+
+            this.isAttaching = true;
+            console.log("🟡 Bubble collision detected! Stopping movement and attaching to grid");
+            console.log("🎯 Collision at bubble position:", shootingBubble.x, shootingBubble.y);
+            console.log("🎯 Hit grid bubble at:", gridBubble.x, gridBubble.y);
+
+            // Entferne SOFORT alle Kollisionsdetektoren um weitere Kollisionen zu verhindern
+            if (this.collider) {
+                this.collider.destroy();
+                this.collider = null;
+            }
+            // Removed: this.physics.world.removeCollider(this.shootingBubble.gameObject); // This might be causing issues
+
+            // Stoppe die Bewegung der schießenden Bubble
+            if (shootingBubble.gameObject && shootingBubble.gameObject.body) {
+                shootingBubble.gameObject.body.setVelocity(0, 0);
+                shootingBubble.gameObject.body.setImmovable(true);
+                shootingBubble.gameObject.body.enable = false; // Deaktiviere Physik komplett
+                console.log("Bubble movement stopped");
+            }
+            
+            // Speichere die Kollisionsposition für bessere Platzierung
+            this.collisionPosition = { x: shootingBubble.gameObject.x, y: shootingBubble.gameObject.y };
+            
+            // Berechne benachbarte freie Zelle um den getroffenen Grid-Bubble
+            const hitGrid = this.grid.findCellByBubble(gridBubble);
+            if (hitGrid) {
+                const neighbors = this.grid.getNeighbors(hitGrid.row, hitGrid.col);
+                const emptyNeighbors = neighbors.filter(n => !this.grid.getBubble(n.row, n.col));
+                if (emptyNeighbors.length > 0) {
+                    let best = null;
+                    let minDist = Number.MAX_VALUE;
+                    for (const n of emptyNeighbors) {
+                        const pos = this.grid.gridToPixel(n.row, n.col);
+                        const dx = this.collisionPosition.x - pos.x;
+                        const dy = this.collisionPosition.y - pos.y;
+                        const d = Math.hypot(dx, dy);
+                        if (d < minDist) {
+                            minDist = d;
+                            best = n;
+                        }
+                    }
+                    this.forcedCell = best;
+                }
+            }
+            
+            // Befestige die Bubble am Grid
+            console.log("DEBUG: Before calling attachBubbleToGrid. this.shootingBubble is:", this.shootingBubble);
+            this.attachBubbleToGrid();
+            this.isAttaching = false; // Reset the flag immediately after attachment attempt
+
+        } catch (error) {
+            console.error("❌ Error in handleBubbleCollision:", error);
+            this.isAttaching = false; // Ensure flag is reset on error
         }
-
-        this.isAttaching = true;
-        console.log("🟡 Bubble collision detected! Stopping movement and attaching to grid");
-        console.log("🎯 Collision at bubble position:", shootingBubble.x, shootingBubble.y);
-        console.log("🎯 Hit grid bubble at:", gridBubble.x, gridBubble.y);
-
-        // Entferne SOFORT alle Kollisionsdetektoren um weitere Kollisionen zu verhindern
-        if (this.collider) {
-            this.collider.destroy();
-            this.collider = null;
-        }
-        this.physics.world.removeCollider(this.shootingBubble.gameObject);
-
-        // Stoppe die Bewegung der schießenden Bubble
-        if (shootingBubble.body) {
-            shootingBubble.body.setVelocity(0, 0);
-            shootingBubble.body.setImmovable(true);
-            shootingBubble.body.enable = false; // Deaktiviere Physik komplett
-            console.log("Bubble movement stopped");
-        }
-        
-        // Speichere die Kollisionsposition für bessere Platzierung
-        this.collisionPosition = { x: shootingBubble.x, y: shootingBubble.y };
-        
-        // Befestige die Bubble am Grid
-        this.attachBubbleToGrid();
-
-        // Reset des Attachment-Flags sofort nach dem Attachment
-        this.isAttaching = false;
     }
     
     attachBubbleToGrid() {
         if (!this.shootingBubble) {
             console.log("❌ No shooting bubble to attach");
-            this.isAttaching = false; // Reset flag if no bubble to attach
+            // The isAttaching flag is now reset in handleBubbleCollision, so no need to reset here.
             return;
         }
 
@@ -450,10 +479,15 @@ class BootScene extends Phaser.Scene {
         // Use precise collision position if available
         const pos = this.collisionPosition || { x: this.shootingBubble.x, y: this.shootingBubble.y };
         
-        // Nutze Collision.findNearestEmptyCell um die beste freie Position zu finden
-        const nearestCell = Collision.findNearestEmptyCell(this.grid, pos);
-        // Clear stored collisionPosition now that we've used it
-        this.collisionPosition = null;
+        // Wähle erzwungene Zelle falls durch Kollision definiert, sonst finde die beste freie Position
+        let nearestCell = null;
+        if (this.forcedCell) {
+            nearestCell = this.forcedCell;
+        } else {
+            nearestCell = Collision.findNearestEmptyCell(this.grid, pos);
+        }
+        // Clear forcedCell nach Verwendung
+        this.forcedCell = null;
 
         if (nearestCell) {
             console.log("🎯 Found nearest cell:", nearestCell);
@@ -471,13 +505,21 @@ class BootScene extends Phaser.Scene {
             
             // Setze die Bubble-Position direkt
             this.shootingBubble.setPosition(targetPixelPos.x, targetPixelPos.y);
-            console.log("🎯 Bubble positioned manually at:", this.shootingBubble.x, this.shootingBubble.y);
+            // Zeichne die Bubble an ihrer neuen Position im Grid
+            this.shootingBubble.draw(); 
+            console.log("🎯 Bubble positioned and drawn manually at:", this.shootingBubble.x, this.shootingBubble.y);
             
-            // Füge die Bubble zum Grid hinzu (ohne zusätzliche Positionierung)
+            // Füge die Bubble zum Grid hinzu
             if (this.grid.isValidGridPosition(nearestCell.row, nearestCell.col)) {
                 this.grid.grid[nearestCell.row][nearestCell.col] = this.shootingBubble;
                 console.log("✅ Bubble added to grid at:", nearestCell.row, nearestCell.col);
                 
+                // Deaktiviere Physik komplett, nachdem die Bubble im Grid ist
+                if (this.shootingBubble.gameObject && this.shootingBubble.gameObject.body) {
+                    this.shootingBubble.gameObject.body.enable = false; 
+                    console.log("✅ Bubble physics completely disabled after grid attachment");
+                }
+
                 // Überprüfe, ob die Bubble tatsächlich im Grid ist
                 const verifyBubble = this.grid.getBubble(nearestCell.row, nearestCell.col);
                 console.log("🔍 Verification - Bubble in grid:", !!verifyBubble, verifyBubble?.color);
@@ -487,12 +529,13 @@ class BootScene extends Phaser.Scene {
             console.log("🔄 Checking for matches...");
             this.checkForMatches(nearestCell.row, nearestCell.col);
             
-            // Bereite nächsten Schuss vor
+            // Bereite nächsten Schuss vor, nachdem alle Match-Prüfungen abgeschlossen sind
             this.shootingBubble = null;
             console.log("🔄 Preparing next bubble...");
             if (this.currentState === this.gameStates.PLAYING) {
                 this.loadNextBubbleToCannon();
             }
+            // The isAttaching flag is now reset in handleBubbleCollision, so no need to reset here.
         } else {
             // Fallback: Entferne die Blase, wenn keine Position gefunden wurde
             console.warn("❌ Keine freie Position gefunden für Bubble");

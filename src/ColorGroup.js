@@ -66,7 +66,7 @@ export class ColorGroup {
       this.grid.removeBubbles(connectedGroup);
       removedBubbles.push(...connectedGroup);
 
-      // Entferne dann alle freischwebenden Bubbles
+      // Entferne freischwebende Bubbles nach dem Entfernen der Gruppe
       const floatingBubbles = this.grid.removeFloatingBubbles();
       removedBubbles.push(...floatingBubbles);
     }

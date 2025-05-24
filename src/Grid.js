@@ -137,6 +137,18 @@ export class Grid {
     return neighbors;
   }
 
+  // Finds the row and column of a given Bubble instance or Phaser GameObject in the grid
+  findCellByBubble(bubbleInput) {
+    for (let r = 0; r < this.rows; r++) {
+      for (let c = 0; c < this.cols; c++) {
+        const bubble = this.grid[r][c];
+        if (bubble && (bubble === bubbleInput || bubble.gameObject === bubbleInput)) {
+          return { row: r, col: c };
+        }
+      }
+    }
+    return null;
+  }
 
   // Führt eine Callback-Funktion für jede Bubble im Gitter aus
   forEachBubble(callback) {

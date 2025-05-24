@@ -23,6 +23,7 @@ export class Bubble {
     this.gameObject.setStrokeStyle(1, 0x000000, 0.8);
     // Setze die Geschwindigkeit auf 0 um zu verhindern, dass die Blase fällt
     this.gameObject.body.setVelocity(0, 0);
+    // Speichere eine Referenz auf die Bubble-Instanz im GameObject
     return this.gameObject;
   }
 
