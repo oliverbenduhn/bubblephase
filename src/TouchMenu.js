@@ -58,35 +58,56 @@ export class TouchMenu {
       startY: 0,
       isDragging: false
     };
-:start_line:61
--------
-:start_line:61
--------
-// Methode zur Anpassung der UI-Elemente basierend auf Bildschirmgröße und Orientierung
-adjustLayout() {
-  const { width, height } = this.scene.sys.game.config;
-  const isPortrait = height > width;
 
-  // Beispiel: Button-Größe und Position anpassen
-  const buttonHeight = isPortrait ? 80 : 60;
-  const padding = 16;
-  const spacing = 20;
+    // Methode zur Anpassung der UI-Elemente basierend auf Bildschirmgröße und Orientierung
+    this.adjustLayout = () => {
+      // Sichere Fallback-Werte für Tests und unvollständige Konfigurationen
+      const gameConfig = this.scene.sys?.game?.config || {};
+      const width = gameConfig.width || this.scene.width || 800;
+      const height = gameConfig.height || this.scene.height || 600;
+      const isPortrait = height > width;
 
-  this.buttons.forEach((button, index) => {
-    if (isPortrait) {
-      button.setPosition(padding, height - (buttonHeight + padding) * (index + 1));
-      button.setFontSize(buttonHeight / 3);
-    } else {
-      button.setPosition(padding + (button.width + spacing) * index, height - buttonHeight - padding);
-      button.setFontSize(buttonHeight / 3);
+      // Verwende konfigurierbare Werte statt hardcodierte
+      const buttonHeight = isPortrait ? this.config.buttonHeight * 1.33 : this.config.buttonHeight;
+      const padding = this.config.padding;
+      const spacing = this.config.spacing;
+
+      this.buttons.forEach((button, index) => {
+        if (isPortrait) {
+          // Korrigiere Button-Eigenschaftszugriff: verwende button.rectangle statt button direkt
+          button.rectangle.setPosition(padding, height - (buttonHeight + padding) * (index + 1));
+          // Korrigiere Font-Größe: verwende button.text statt button.setFontSize
+          button.text.setFontSize(buttonHeight / 3);
+        } else {
+          // Korrigiere width-Zugriff: verwende button.rectangle.width
+          button.rectangle.setPosition(padding + (button.rectangle.width + spacing) * index, height - buttonHeight - padding);
+          button.text.setFontSize(buttonHeight / 3);
+        }
+      });
     }
-  });
-}
 
-// Methode zum Aktualisieren des UI-Layouts
-updateLayout() {
-  this.adjustLayout();
-}
+    // Methode zum Aktualisieren des UI-Layouts
+    this.updateLayout = () => {
+      this.adjustLayout();
+    }
+
+    // Event-Listener für Resize und Orientierungsänderungen hinzufügen
+    if (this.scene.scale && typeof this.scene.scale.on === 'function') {
+      this.scene.scale.on('resize', this.updateLayout);
+    }
+    
+    // Orientierungsänderung Event-Listener (falls verfügbar)
+    if (typeof window !== 'undefined' && window.addEventListener) {
+      this.handleOrientationChange = () => {
+        // Kleine Verzögerung, um sicherzustellen, dass die Größenänderung abgeschlossen ist
+        setTimeout(() => {
+          this.updateLayout();
+        }, 100);
+      };
+      
+      window.addEventListener('orientationchange', this.handleOrientationChange);
+      window.addEventListener('resize', this.handleOrientationChange);
+    }
 
     // Initialisierung
     this.create();
@@ -518,6 +539,16 @@ updateLayout() {
    * Gibt alle Ressourcen frei
    */
   destroy() {
+    // Event-Listener entfernen
+    if (this.scene.scale && typeof this.scene.scale.off === 'function') {
+      this.scene.scale.off('resize', this.updateLayout);
+    }
+    
+    if (typeof window !== 'undefined' && this.handleOrientationChange) {
+      window.removeEventListener('orientationchange', this.handleOrientationChange);
+      window.removeEventListener('resize', this.handleOrientationChange);
+    }
+    
     if (this.container) {
       this.container.destroy();
     }

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { Bubble, BUBBLE_RADIUS } from './Bubble';
+import { BUBBLE_RADIUS } from './config';
 
 export class Shooter {
   constructor(scene, x, y) {
@@ -67,6 +67,7 @@ export class Shooter {
    */
   checkWallCollision(bubble, gameWidth) {
     let hasCollision = false;
+    
     // Linke Wand
     if (bubble.x - BUBBLE_RADIUS < 0) {
       bubble.x = BUBBLE_RADIUS; // Position korrigieren
@@ -89,6 +90,7 @@ export class Shooter {
    * @returns {boolean} - true wenn die Bubble die obere Grenze erreicht hat
    */
   checkTopCollision(bubble, topY = 0) {
-    return bubble.y - BUBBLE_RADIUS < topY;
+    const result = bubble.y - BUBBLE_RADIUS < topY;
+    return result;
   }
 }

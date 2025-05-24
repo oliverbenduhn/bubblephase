@@ -13,9 +13,16 @@ export class Bubble {
     if (this.gameObject) {
       this.gameObject.destroy(); // Altes Objekt entfernen, falls vorhanden
     }
+    // Erstelle einen physikalischen Kreis
     this.gameObject = this.scene.add.circle(this.x, this.y, this.radius, this.color);
+    // Aktiviere die Physik für die Blase
+    this.scene.physics.add.existing(this.gameObject, false);
+    // Setze die Kollisionsbox
+    this.gameObject.body.setCircle(this.radius);
     // Optional: Einen Rand hinzufügen, um die Bubbles besser zu unterscheiden
-    this.gameObject.setStrokeStyle(1, 0x000000, 0.8); 
+    this.gameObject.setStrokeStyle(1, 0x000000, 0.8);
+    // Setze die Geschwindigkeit auf 0 um zu verhindern, dass die Blase fällt
+    this.gameObject.body.setVelocity(0, 0);
     return this.gameObject;
   }
 
@@ -25,6 +32,9 @@ export class Bubble {
     this.y = y;
     if (this.gameObject) {
       this.gameObject.setPosition(x, y);
+      if (this.gameObject.body) {
+        this.gameObject.body.reset(x, y);
+      }
     }
   }
 
@@ -47,5 +57,5 @@ export const BUBBLE_COLORS = {
   ORANGE: 0xffa500,
 };
 
-// Standardradius für Bubbles
-export const BUBBLE_RADIUS = 20;
+// Standardradius für Bubbles - moved to config.js
+// export const BUBBLE_RADIUS = 20;

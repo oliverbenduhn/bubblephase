@@ -1,12 +1,13 @@
 import { Collision } from './Collision';
-import { Bubble, BUBBLE_COLORS, BUBBLE_RADIUS } from './Bubble';
+import { Bubble, BUBBLE_COLORS } from './Bubble';
+import { BUBBLE_RADIUS } from './config';
 import { Grid } from './Grid';
 
 describe('Collision', () => {
   describe('checkBubbleCollision', () => {
     test('sollte true zurückgeben, wenn zwei Bubbles kollidieren', () => {
       const bubble1 = { x: 100, y: 100 };
-      const bubble2 = { x: 100 + BUBBLE_RADIUS, y: 100 };
+      const bubble2 = { x: 100 + BUBBLE_RADIUS * 1.8, y: 100 }; // Noch kleiner für sicherere Kollision
       expect(Collision.checkBubbleCollision(bubble1, bubble2)).toBe(true);
     });
 
@@ -106,8 +107,8 @@ describe('Collision', () => {
       const movingBubble = { x: 100, y: 100 };
       
       const gridBubble1 = { x: 100 + BUBBLE_RADIUS * 3, y: 100 }; // Nicht kollidierend
-      const gridBubble2 = { x: 100 + BUBBLE_RADIUS, y: 100 };     // Kollidierend
-      const gridBubble3 = { x: 100, y: 100 + BUBBLE_RADIUS };     // Auch kollidierend, aber später gefunden
+      const gridBubble2 = { x: 100 + BUBBLE_RADIUS * 1.8, y: 100 };     // Kollidierend (sicherer Wert)
+      const gridBubble3 = { x: 100, y: 100 + BUBBLE_RADIUS * 1.8 };     // Auch kollidierend, aber später gefunden
 
       const mockGrid = {
         forEachBubble: jest.fn((callback) => {

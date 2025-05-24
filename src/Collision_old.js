@@ -59,7 +59,7 @@ export class Collision {
     grid.forEachBubble((gridBubble, row, col) => {
       if (collidingBubble) return; // Wenn bereits eine Kollision gefunden wurde, nicht weiter suchen
       
-      if (Collision.checkBubbleCollision(movingBubble, gridBubble)) {
+      if (this.checkBubbleCollision(movingBubble, gridBubble)) {
         collidingBubble = gridBubble;
       }
     });

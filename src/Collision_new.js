@@ -26,7 +26,9 @@ export class Collision {
     const y = movingBubble.y;
     
     const approxGridPos = grid.pixelToGrid(x, y);
-    console.log(`Bubble Position: (${x}, ${y}), Grid Position: (${approxGridPos.row}, ${approxGridPos.col})`);
+    if (process.env.NODE_ENV === 'development') {
+      console.log(`Bubble Position: (${x}, ${y}), Grid Position: (${approxGridPos.row}, ${approxGridPos.col})`);
+    }
     
     // Einfache Suche in einem Radius um die Position
     for (let radius = 0; radius <= 2; radius++) {
@@ -59,7 +61,7 @@ export class Collision {
     grid.forEachBubble((gridBubble, row, col) => {
       if (collidingBubble) return; // Wenn bereits eine Kollision gefunden wurde, nicht weiter suchen
       
-      if (Collision.checkBubbleCollision(movingBubble, gridBubble)) {
+      if (this.checkBubbleCollision(movingBubble, gridBubble)) {
         collidingBubble = gridBubble;
       }
     });

@@ -1,5 +1,5 @@
 import { Shooter } from './Shooter';
-import { BUBBLE_RADIUS } from './Bubble';
+import { BUBBLE_RADIUS } from './config';
 import Phaser from 'phaser';
 
 // Mocke Phaser.Math.Angle.Between, da wir die echte Phaser-Implementierung nicht im Test verwenden können
@@ -82,17 +82,17 @@ describe('Shooter', () => {
   });
 
   test('checkWallCollision sollte Kollisionen mit der linken und rechten Wand erkennen', () => {
-    // Bubble links außerhalb
-    const leftBubble = { x: -10, y: 300, velocityX: -100, velocityY: -100 };
+    // Bubble links außerhalb - Position so dass x - BUBBLE_RADIUS < 0
+    const leftBubble = { x: BUBBLE_RADIUS - 1, y: 300, velocityX: -100, velocityY: -100 };
     expect(shooter.checkWallCollision(leftBubble, gameWidth)).toBe(true);
     expect(leftBubble.x).toBe(BUBBLE_RADIUS); // Position korrigiert
-    expect(leftBubble.velocityX).toBe(100); // Geschwindigkeit umgekehrt
+    expect(leftBubble.velocityX).toBe(100); // Geschwindigkeit umgekehrt (-(-100) = 100)
     
-    // Bubble rechts außerhalb
-    const rightBubble = { x: gameWidth + 10, y: 300, velocityX: 100, velocityY: -100 };
+    // Bubble rechts außerhalb - Position so dass x + BUBBLE_RADIUS > gameWidth
+    const rightBubble = { x: gameWidth - BUBBLE_RADIUS + 1, y: 300, velocityX: 100, velocityY: -100 };
     expect(shooter.checkWallCollision(rightBubble, gameWidth)).toBe(true);
     expect(rightBubble.x).toBe(gameWidth - BUBBLE_RADIUS); // Position korrigiert
-    expect(rightBubble.velocityX).toBe(-100); // Geschwindigkeit umgekehrt
+    expect(rightBubble.velocityX).toBe(-100); // Geschwindigkeit umgekehrt (100 * -1 = -100)
     
     // Bubble innerhalb
     const middleBubble = { x: 400, y: 300, velocityX: 100, velocityY: -100 };
@@ -101,8 +101,10 @@ describe('Shooter', () => {
   });
 
   test('checkTopCollision sollte erkennen, wenn eine Bubble die obere Grenze erreicht', () => {
-    // Bubble oberhalb der Grenze
-    expect(shooter.checkTopCollision({ x: 400, y: 10 }, 20)).toBe(true);
+    // Bubble oberhalb der Grenze - y - BUBBLE_RADIUS < topY
+    // Für topY = 20: y - 15 < 20 bedeutet y < 35
+    // Teste mit einem extremeren Wert um sicherzustellen, dass es funktioniert
+    expect(shooter.checkTopCollision({ x: 400, y: 10 }, 20)).toBe(true); // 10 - 15 = -5 < 20 = true
     
     // Bubble unterhalb der Grenze
     expect(shooter.checkTopCollision({ x: 400, y: 50 }, 20)).toBe(false);

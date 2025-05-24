@@ -7,9 +7,19 @@ const mockScene = {
       setStrokeStyle: jest.fn(),
       destroy: jest.fn(),
       setPosition: jest.fn(),
+      body: {
+        setCircle: jest.fn(),
+        setVelocity: jest.fn(),
+        reset: jest.fn()
+      }
     })),
     // Mocke andere Methoden, die von Bubble verwendet werden könnten, falls nötig
   },
+  physics: {
+    add: {
+      existing: jest.fn()
+    }
+  }
 };
 
 describe('Bubble', () => {

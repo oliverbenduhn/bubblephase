@@ -1,5 +1,6 @@
-// Ensure BUBBLE_RADIUS and BUBBLE_COLORS are correctly imported from Bubble.js
-import { BUBBLE_RADIUS, BUBBLE_COLORS, Bubble } from './Bubble';
+// Ensure BUBBLE_RADIUS and BUBBLE_COLORS are correctly imported from config.js
+import { BUBBLE_RADIUS, BUBBLE_COLORS } from './config';
+import { Bubble } from './Bubble';
 
 export class Grid {
   constructor(scene, rows, cols, xOffset = 0, yOffset = 0, bubbleRadius = BUBBLE_RADIUS) {
@@ -147,6 +148,17 @@ export class Grid {
         }
       }
     }
+  }
+
+  // Gibt alle Bubble-GameObjects zurück (für Kollisionserkennung)
+  getAllBubbleObjects() {
+    const bubbleObjects = [];
+    this.forEachBubble((bubble) => {
+      if (bubble && bubble.gameObject) {
+        bubbleObjects.push(bubble.gameObject);
+      }
+    });
+    return bubbleObjects;
   }
 
   // Initialisiert das Gitter mit einer bestimmten Anzahl von Reihen mit Bubbles
