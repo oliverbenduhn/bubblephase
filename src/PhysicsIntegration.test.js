@@ -10,10 +10,221 @@ describe('Physics Integration Tests', () => {
   let mockScene, grid, shooter, colorGroup;
 
   beforeEach(() => {
+    // Comprehensive Phaser Scene Mock with all necessary APIs
     mockScene = {
-      add: { circle: () => ({ setStrokeStyle: () => {}, destroy: () => {} }) },
-      physics: { add: { existing: () => ({ body: { setCircle: () => {} } }) } }
+      // Mock für scene.add (Game Object Factory)
+      add: {
+        circle: jest.fn((x, y, radius, fillColor) => {
+          const mockCircle = {
+            x: x || 0,
+            y: y || 0,
+            radius: radius || 20,
+            fillColor: fillColor || 0xffffff,
+            setStrokeStyle: jest.fn().mockReturnThis(),
+            setPosition: jest.fn().mockReturnThis(),
+            setOrigin: jest.fn().mockReturnThis(),
+            setDepth: jest.fn().mockReturnThis(),
+            setVisible: jest.fn().mockReturnThis(),
+            setAlpha: jest.fn().mockReturnThis(),
+            destroy: jest.fn(),
+            // Physics body simulation
+            body: {
+              setCircle: jest.fn(),
+              setVelocity: jest.fn(),
+              updateFromGameObject: jest.fn(),
+              setCollideWorldBounds: jest.fn(),
+              setBounce: jest.fn(),
+              setImmovable: jest.fn(),
+              enable: true,
+              onWorldBounds: false
+            }
+          };
+          return mockCircle;
+        }),
+        
+        text: jest.fn((x, y, text, style) => ({
+          x: x || 0,
+          y: y || 0,
+          text: text || '',
+          style: style || {},
+          setOrigin: jest.fn().mockReturnThis(),
+          setDepth: jest.fn().mockReturnThis(),
+          setPosition: jest.fn().mockReturnThis(),
+          setText: jest.fn().mockReturnThis(),
+          destroy: jest.fn()
+        })),
+        
+        line: jest.fn((x, y, x1, y1, x2, y2, color, alpha) => ({
+          x: x || 0,
+          y: y || 0,
+          setLineWidth: jest.fn().mockReturnThis(),
+          setOrigin: jest.fn().mockReturnThis(),
+          setVisible: jest.fn().mockReturnThis(),
+          setTo: jest.fn().mockReturnThis(),
+          setAlpha: jest.fn().mockReturnThis(),
+          destroy: jest.fn()
+        })),
+        
+        graphics: jest.fn(() => ({
+          fillStyle: jest.fn().mockReturnThis(),
+          fillCircle: jest.fn().mockReturnThis(),
+          strokeCircle: jest.fn().mockReturnThis(),
+          lineStyle: jest.fn().mockReturnThis(),
+          clear: jest.fn().mockReturnThis(),
+          setDepth: jest.fn().mockReturnThis(),
+          destroy: jest.fn()
+        })),
+        
+        rectangle: jest.fn((x, y, width, height, color, alpha) => ({
+          x: x || 0,
+          y: y || 0,
+          width: width || 100,
+          height: height || 100,
+          setOrigin: jest.fn().mockReturnThis(),
+          setAlpha: jest.fn().mockReturnThis(),
+          destroy: jest.fn()
+        })),
+        
+        zone: jest.fn((x, y, width, height) => ({
+          x: x || 0,
+          y: y || 0,
+          width: width || 100,
+          height: height || 100,
+          setInteractive: jest.fn().mockReturnThis(),
+          setSize: jest.fn().mockReturnThis(),
+          setPosition: jest.fn().mockReturnThis(),
+          on: jest.fn(),
+          destroy: jest.fn()
+        }))
+      },
+      
+      // Mock für scene.physics (Physics System)
+      physics: {
+        add: {
+          existing: jest.fn((gameObject) => {
+            // Simuliere die Hinzufügung von Physik zu einem GameObject
+            if (!gameObject.body) {
+              gameObject.body = {
+                setCircle: jest.fn().mockReturnThis(),
+                setVelocity: jest.fn().mockReturnThis(),
+                setMaxVelocity: jest.fn().mockReturnThis(),  // Neue Methode für Geschwindigkeitsbegrenzung
+                setDrag: jest.fn().mockReturnThis(),         // Neue Methode für Luftwiderstand
+                updateFromGameObject: jest.fn().mockReturnThis(),
+                setCollideWorldBounds: jest.fn().mockReturnThis(),
+                setBounce: jest.fn().mockReturnThis(),
+                setImmovable: jest.fn().mockReturnThis(),
+                enable: true,
+                onWorldBounds: false,
+                velocity: { x: 0, y: 0 },
+                maxVelocity: { x: 600, y: 600 },            // Mock der maximalen Geschwindigkeit
+                drag: { x: 0.98, y: 0.98 }                  // Mock des Luftwiderstands
+              };
+            }
+            return gameObject;
+          }),
+          
+          overlap: jest.fn((objectA, objectB, callback) => {
+            // Mock für Kollisionserkennung zwischen Objekten
+            return {
+              destroy: jest.fn(),
+              active: true
+            };
+          })
+        },
+        
+        world: {
+          on: jest.fn(),
+          off: jest.fn(),
+          removeCollider: jest.fn(),
+          setBounds: jest.fn(),
+          gravity: { x: 0, y: 0 }
+        }
+      },
+      
+      // Mock für scene.sys (Scene Systems)
+      sys: {
+        game: {
+          config: {
+            width: 800,
+            height: 600
+          },
+          events: {
+            on: jest.fn(),
+            off: jest.fn(),
+            emit: jest.fn()
+          }
+        },
+        events: {
+          on: jest.fn(),
+          off: jest.fn(),
+          emit: jest.fn()
+        }
+      },
+      
+      // Mock für scene.input (Input System)
+      input: {
+        on: jest.fn(),
+        off: jest.fn(),
+        once: jest.fn(),
+        activePointer: {
+          isDown: false,
+          x: 0,
+          y: 0
+        },
+        manager: {
+          canvas: {
+            addEventListener: jest.fn(),
+            removeEventListener: jest.fn()
+          }
+        }
+      },
+      
+      // Mock für scene.tweens (Tween System für Animationen)
+      tweens: {
+        add: jest.fn((config) => {
+          // Simuliere sofortige Ausführung der Tween-Callbacks
+          if (config.onComplete) {
+            setTimeout(config.onComplete, 0);
+          }
+          return {
+            destroy: jest.fn(),
+            stop: jest.fn(),
+            pause: jest.fn(),
+            resume: jest.fn()
+          };
+        })
+      },
+      
+      // Mock für scene.scale (Scale Manager)
+      scale: {
+        width: 800,
+        height: 600,
+        on: jest.fn(),
+        off: jest.fn()
+      },
+      
+      // Mock für Phaser.Math utilities (falls verwendet)
+      Math: {
+        Angle: {
+          Between: jest.fn((x1, y1, x2, y2) => {
+            return Math.atan2(y2 - y1, x2 - x1);
+          })
+        }
+      },
+      
+      // Zusätzliche Mock-Funktionen die möglicherweise verwendet werden
+      load: {
+        image: jest.fn()
+      },
+      
+      scene: {
+        restart: jest.fn(),
+        start: jest.fn(),
+        pause: jest.fn(),
+        resume: jest.fn()
+      }
     };
+    
     grid = new Grid(mockScene, 10, 8, 50, 50);
     shooter = new Shooter(mockScene, 400, 600);
     colorGroup = new ColorGroup(grid);

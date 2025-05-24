@@ -19,6 +19,9 @@ export class Bubble {
     this.scene.physics.add.existing(this.gameObject, false);
     // Setze die Kollisionsbox
     this.gameObject.body.setCircle(this.radius);
+    // Verbesserte Physics Body Konfiguration für optimales Verhalten
+    this.gameObject.body.setMaxVelocity(600, 600);  // Geschwindigkeitsbegrenzung für Stabilität
+    this.gameObject.body.setDrag(0.98);             // Minimaler Luftwiderstand für natürlicheres Verhalten
     // Optional: Einen Rand hinzufügen, um die Bubbles besser zu unterscheiden
     this.gameObject.setStrokeStyle(1, 0x000000, 0.8);
     // Setze die Geschwindigkeit auf 0 um zu verhindern, dass die Blase fällt

@@ -10,7 +10,11 @@ const mockScene = {
       body: {
         setCircle: jest.fn(),
         setVelocity: jest.fn(),
-        reset: jest.fn()
+        reset: jest.fn(),
+        setMaxVelocity: jest.fn().mockReturnThis(),
+        setDrag: jest.fn().mockReturnThis(),
+        maxVelocity: { x: 600, y: 600 },
+        drag: { x: 0.98, y: 0.98 }
       }
     })),
     // Mocke andere Methoden, die von Bubble verwendet werden könnten, falls nötig

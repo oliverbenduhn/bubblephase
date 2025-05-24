@@ -459,6 +459,9 @@ class BootScene extends Phaser.Scene {
             // Befestige die Bubble am Grid
             console.log("DEBUG: Before calling attachBubbleToGrid. this.shootingBubble is:", this.shootingBubble);
             this.attachBubbleToGrid();
+            
+            // Bereinige die Kollisionsposition nach dem Anhängen
+            this.collisionPosition = null;
             this.isAttaching = false; // Reset the flag immediately after attachment attempt
 
         } catch (error) {
@@ -734,7 +737,9 @@ export function PhaserGame() {
           default: 'arcade',
           arcade: {
             gravity: { y: 0 },
-            debug: false
+            debug: false,
+            fps: 60,           // Explizite FPS-Kontrolle für konsistente Performance
+            timeScale: 1       // Zeitskala-Kontrolle für eventuelle Zeitlupe/Beschleunigung
           }
         }
       };
