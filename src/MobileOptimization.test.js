@@ -38,9 +38,11 @@ const createInteractiveObject = () => {
     setOrigin: jest.fn().mockReturnThis(),
     setAlpha: jest.fn().mockReturnThis(),
     setSize: jest.fn().mockReturnThis(),
+    setDepth: jest.fn().mockReturnThis(),
     destroy: jest.fn(),
     on: jest.fn().mockReturnThis(),
     setScale: jest.fn().mockReturnThis(),
+    setVisible: jest.fn().mockReturnThis(), // Added setVisible
     x: 0,
     y: 0
   };
@@ -60,7 +62,10 @@ const mockScene = {
         lineTo: jest.fn().mockReturnValue(graphicsMock),
         arc: jest.fn().mockReturnValue(graphicsMock),
         strokePath: jest.fn().mockReturnValue(graphicsMock),
-        destroy: jest.fn()
+        destroy: jest.fn(),
+        setDepth: jest.fn().mockReturnValue(graphicsMock),
+        setVisible: jest.fn().mockReturnValue(graphicsMock),
+        clear: jest.fn().mockReturnValue(graphicsMock)
       };
       return graphicsMock;
     },
@@ -178,7 +183,7 @@ describe('MobileOptimization', () => {
     mockScene.width = 200;
     mockScene.height = 300;
     let size = mobileOpt.calculateButtonSize();
-    expect(size).toBe(44); // Sollte Mindestgröße sein
+    expect(size).toBe(48); // Sollte Mindestgröße sein (minButtonSize ist 48)
 
     // Test für mittlere Größe
     mockScene.width = 800;
@@ -191,7 +196,7 @@ describe('MobileOptimization', () => {
     mockScene.width = 2000;
     mockScene.height = 1500;
     size = mobileOpt.calculateButtonSize();
-    expect(size).toBe(88);
+    expect(size).toBe(96); // Sollte maximale Größe sein (maxButtonSize ist 96)
   });
 
   test('berücksichtigt Safe Area Insets', () => {
@@ -212,21 +217,20 @@ describe('MobileOptimization', () => {
     mobileOptWithSafeArea.resize(800, 600);
     
     expect(overlay.setPosition).toHaveBeenCalledWith(10, 20);
-    expect(overlay.setSize).toHaveBeenCalledWith(780, 440); // 800-20, (600-50)*0.8
+    expect(overlay.setSize).toHaveBeenCalledWith(780, 467.5); // (600 - 20 - 30) * 0.85 = 550 * 0.85 = 467.5
   });
 
-  test('bietet verbessertes visuelles Feedback', () => {
+  test('bietet verbessertes visuelles Feedback für Touch-Interaktionen', () => {
     const button = mobileOpt.createTouchButton('left', 100, 100);
     
-    // Simuliere Hover
-    mobileOpt.handleButtonOver(button);
-    expect(button.setStrokeStyle).toHaveBeenCalled();
-    expect(button.setFillStyle).toHaveBeenCalled();
+    // Simuliere Touch-Down (Button-Press)
+    mobileOpt.handleButtonDown(button, 'left');
+    expect(mockScene.tweens.add).toHaveBeenCalled();
+    expect(mockScene.emit).toHaveBeenCalledWith('mobileMove', 'left');
     
-    // Simuliere Klick
-    mobileOpt.handleButtonDown(button);
-    expect(button.setStrokeStyle).toHaveBeenCalled();
-    expect(button.setFillStyle).toHaveBeenCalled();
+    // Simuliere Touch-Up (Button-Release)
+    mobileOpt.handleButtonUp(button);
+    expect(mockScene.tweens.add).toHaveBeenCalled();
   });
 
   test('should adjust UI elements based on screen size', () => {

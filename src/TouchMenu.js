@@ -151,7 +151,6 @@ export class TouchMenu {
       this.background.on('pointerdown', (pointer) => this.onDragStart(pointer), this);
       this.background.on('pointermove', (pointer) => this.onDragMove(pointer), this);
       this.background.on('pointerup', () => this.onDragEnd(), this);
-      this.background.on('pointerout', () => this.onDragEnd(), this);
     }
   }
 
@@ -185,7 +184,7 @@ export class TouchMenu {
       buttonOptions.color
     );
     button.setOrigin(0.5, 0.5);
-    button.setInteractive({ useHandCursor: true });
+    button.setInteractive();
     button.customData = { ...buttonOptions, callback };
 
     // Ecken abrunden durch eine Maske
@@ -228,31 +227,7 @@ export class TouchMenu {
       this.container.add(icon);
     }
 
-    // Event-Handler
-    button.on('pointerover', () => {
-      if (buttonOptions.disabled) return;
-      button.setFillStyle(buttonOptions.activeColor);
-      this.scene.tweens.add({
-        targets: button,
-        scaleX: 1.02,
-        scaleY: 1.02,
-        duration: this.config.animationDuration / 2,
-        ease: 'Sine.easeOut'
-      });
-    });
-
-    button.on('pointerout', () => {
-      if (buttonOptions.disabled) return;
-      button.setFillStyle(buttonOptions.color);
-      this.scene.tweens.add({
-        targets: button,
-        scaleX: 1,
-        scaleY: 1,
-        duration: this.config.animationDuration / 2,
-        ease: 'Sine.easeIn'
-      });
-    });
-
+    // Touch-Event-Handler für Buttons
     button.on('pointerdown', () => {
       if (buttonOptions.disabled) return;
       this.scene.tweens.add({
@@ -477,7 +452,7 @@ export class TouchMenu {
     this.pauseButton = this.scene.add.circle(safeAreaX, safeAreaY, pauseButtonSize / 2);
     this.pauseButton.setStrokeStyle(3, 0xffffff, 0.8);
     this.pauseButton.setFillStyle(0x000000, 0.5);
-    this.pauseButton.setInteractive({ useHandCursor: true });
+    this.pauseButton.setInteractive();
     
     // Pause-Symbol
     const pauseIcon = this.scene.add.graphics();

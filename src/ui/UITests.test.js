@@ -45,6 +45,7 @@ const createInteractiveObject = () => {
     setScale: jest.fn().mockReturnThis(),
     setMask: jest.fn().mockReturnThis(),
     setText: jest.fn().mockReturnThis(),
+    setDepth: jest.fn().mockReturnThis(), // Added setDepth
     destroy: jest.fn(),
     on: jest.fn().mockImplementation((event, callback) => {
       // Simuliere Event-Aufruf für Testzwecke
@@ -95,7 +96,10 @@ const mockScene = {
         arc: jest.fn().mockReturnValue(graphicsMock),
         strokePath: jest.fn().mockReturnValue(graphicsMock),
         createGeometryMask: jest.fn().mockReturnValue({ type: 'GeometryMask' }),
-        destroy: jest.fn()
+        destroy: jest.fn(),
+        setDepth: jest.fn().mockReturnValue(graphicsMock),
+        setVisible: jest.fn().mockReturnValue(graphicsMock),
+        clear: jest.fn().mockReturnValue(graphicsMock)
       };
       return graphicsMock;
     },

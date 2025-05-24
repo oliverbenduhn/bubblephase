@@ -1,1 +1,24 @@
 /* App-spezifische Stile - kann vorerst leer bleiben */
+
+.game-container {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background-color: #000;
+  overflow: hidden;
+}
+
+@media (max-width: 768px) {
+  .game-container {
+    padding: 0;
+  }
+}
+
+/* Verhindere Zoom auf mobilen Geräten */
+@media (max-width: 768px) {
+  html {
+    touch-action: manipulation;
+  }
+}

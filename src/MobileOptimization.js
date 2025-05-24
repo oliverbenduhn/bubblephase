@@ -4,15 +4,16 @@ export class MobileOptimization {
   constructor(scene, config = {}) {
     this.scene = scene;
     this.config = {
-      minButtonSize: 44, // Minimale Buttongröße für Touch (Apple HIG Standard)
-      maxButtonSize: 88, // Maximale Buttongröße
-      hapticFeedback: true, // Ob haptisches Feedback aktiviert sein soll
-      showTouchControls: true, // Ob Touch-Steuerelemente angezeigt werden sollen
-      controlsOpacity: 0.3, // Grundopazität der Steuerelemente
-      activeOpacity: 0.6, // Opazität bei Berührung
-      animationDuration: 150, // Dauer der Übergangsanimationen in ms
-      touchThrottle: 16, // Touch-Event Throttling in ms (≈60fps)
-      safeAreaInsets: { // Sichere Bereiche für moderne Mobilgeräte
+      minButtonSize: 48, // Erhöht für bessere Touch-Zugänglichkeit (WCAG Standard)
+      maxButtonSize: 96, // Größere maximale Größe für Tablets
+      hapticFeedback: true,
+      showTouchControls: true,
+      controlsOpacity: 0.4, // Leicht erhöht für bessere Sichtbarkeit
+      activeOpacity: 0.8, // Deutlicheres Feedback
+      animationDuration: 120, // Schnellere Animationen für responsiveres Gefühl
+      touchThrottle: 16,
+      minTouchSpacing: 56, // Mindestabstand zwischen Touch-Elementen
+      safeAreaInsets: {
         top: 0,
         right: 0,
         bottom: 0,
@@ -24,22 +25,72 @@ export class MobileOptimization {
     this.touchControls = null;
     this.isMobile = this.checkIsMobile();
     this.lastTouchTime = 0;
+    this.trajectoryIndicators = [];
+    this.aimHelper = null;
+    
     this.updateSafeArea();
     this.setupTouchControls();
     this.monitorScreenSize();
+    this.setupTrajectoryHelpers();
   }
 
   /**
    * Aktualisiert die Safe Area Insets basierend auf dem Environment
    */
   updateSafeArea() {
-    if ('env' in window && window.env.getEnv) {
-      const env = window.env.getEnv();
+    // Prüfe auf CSS Environment Variables für Safe Areas
+    if (typeof window !== 'undefined' && window.CSS && window.CSS.supports) {
+      if (window.CSS.supports('padding: env(safe-area-inset-top)')) {
+        // Nutze CSS Environment Variables für moderne Browser
+        const style = getComputedStyle(document.documentElement);
+        this.config.safeAreaInsets = {
+          top: parseInt(style.getPropertyValue('--sat') || '0') || this.config.safeAreaInsets.top,
+          right: parseInt(style.getPropertyValue('--sar') || '0') || this.config.safeAreaInsets.right,
+          bottom: parseInt(style.getPropertyValue('--sab') || '0') || this.config.safeAreaInsets.bottom,
+          left: parseInt(style.getPropertyValue('--sal') || '0') || this.config.safeAreaInsets.left
+        };
+      }
+    }
+
+    // Fallback für Geräte ohne env() Support
+    if (!this.config.safeAreaInsets.top) {
+      this.detectNotchAndSafeAreas();
+    }
+  }
+
+  /**
+   * Erkennt Notch und Safe Areas auf älteren Geräten
+   */
+  detectNotchAndSafeAreas() {
+    const userAgent = navigator.userAgent;
+    
+    // iPhone X+ Serie Erkennung
+    if (/iPhone/.test(userAgent)) {
+      const screenHeight = window.screen.height;
+      const screenWidth = window.screen.width;
+      
+      // iPhone X+ Modelle haben typischerweise diese Auflösungen
+      if ((screenHeight === 812 && screenWidth === 375) ||  // iPhone X, XS
+          (screenHeight === 896 && screenWidth === 414) ||  // iPhone XR, XS Max
+          (screenHeight === 844 && screenWidth === 390) ||  // iPhone 12, 13
+          (screenHeight === 926 && screenWidth === 428)) {  // iPhone 12 Pro Max, 13 Pro Max
+        
+        this.config.safeAreaInsets = {
+          top: 44,
+          right: 0,
+          bottom: 34,
+          left: 0
+        };
+      }
+    }
+    
+    // Android mit Notch Erkennung (allgemeine Heuristik)
+    if (/Android/.test(userAgent) && window.screen.height > 1800) {
       this.config.safeAreaInsets = {
-        top: env.safe_area_inset_top || 0,
-        right: env.safe_area_inset_right || 0,
-        bottom: env.safe_area_inset_bottom || 0,
-        left: env.safe_area_inset_left || 0
+        top: 24,
+        right: 0,
+        bottom: 12,
+        left: 0
       };
     }
   }
@@ -76,17 +127,41 @@ export class MobileOptimization {
   }
 
   /**
-   * Berechnet die optimale Buttongröße basierend auf der Bildschirmgröße
+   * Berechnet die optimale Buttongröße basierend auf Bildschirmgröße und Touch-Zugänglichkeit
    */
   calculateButtonSize() {
     const screenMin = Math.min(this.scene.width, this.scene.height);
-    let size = screenMin * 0.12; // Reduziert von 0.15 auf 0.12 für mittlere Bildschirme
+    const screenMax = Math.max(this.scene.width, this.scene.height);
     
-    // Begrenzen auf Min/Max
+    // Dynamische Berechnung basierend auf Bildschirmgröße und Orientierung
+    let size;
+    
+    if (screenMin < 375) {
+      // Kleine Bildschirme (iPhone SE, etc.)
+      size = screenMin * 0.11;
+    } else if (screenMin < 414) {
+      // Standard Smartphones
+      size = screenMin * 0.12;
+    } else if (screenMin < 768) {
+      // Große Smartphones / kleine Tablets
+      size = screenMin * 0.10;
+    } else {
+      // Tablets
+      size = screenMin * 0.08;
+    }
+    
+    // Stelle sicher, dass Mindestabstand zwischen Buttons eingehalten wird
+    const availableSpace = screenMin - (this.config.safeAreaInsets.left + this.config.safeAreaInsets.right);
+    const maxButtonsPerRow = 3; // Annahme: maximal 3 Buttons nebeneinander
+    const maxSizeBasedOnSpacing = (availableSpace - (this.config.minTouchSpacing * (maxButtonsPerRow + 1))) / maxButtonsPerRow;
+    
+    size = Math.min(size, maxSizeBasedOnSpacing);
+    
+    // Begrenzen auf Min/Max mit verbesserter Logik
     size = Math.max(size, this.config.minButtonSize);
     size = Math.min(size, this.config.maxButtonSize);
     
-    return size;
+    return Math.round(size);
   }
 
   /**
@@ -100,8 +175,6 @@ export class MobileOptimization {
     button.setStrokeStyle(3, 0xffffff, this.config.controlsOpacity)
           .setFillStyle(0xffffff, this.config.controlsOpacity * 0.5)
           .setInteractive()
-          .on('pointerover', () => this.handleButtonOver(button))
-          .on('pointerout', () => this.handleButtonOut(button))
           .on('pointerdown', () => this.handleButtonDown(button, type))
           .on('pointerup', () => this.handleButtonUp(button));
 
@@ -164,34 +237,6 @@ export class MobileOptimization {
     graphics.beginPath();
     graphics.arc(button.x, button.y, size/4, 0, Math.PI * 2);
     graphics.strokePath();
-  }
-
-  /**
-   * Event-Handler für Button-Hover
-   */
-  handleButtonOver(button) {
-    this.scene.tweens.add({
-      targets: button,
-      scaleX: 1.1,
-      scaleY: 1.1,
-      duration: this.config.animationDuration / 2
-    });
-    button.setStrokeStyle(3, 0xffffff, this.config.controlsOpacity * 1.2)
-          .setFillStyle(0xffffff, this.config.controlsOpacity * 0.7);
-  }
-
-  /**
-   * Event-Handler für Button-Out
-   */
-  handleButtonOut(button) {
-    this.scene.tweens.add({
-      targets: button,
-      scaleX: 1,
-      scaleY: 1,
-      duration: this.config.animationDuration / 2
-    });
-    button.setStrokeStyle(3, 0xffffff, this.config.controlsOpacity)
-          .setFillStyle(0xffffff, this.config.controlsOpacity * 0.5);
   }
 
   /**
@@ -282,45 +327,84 @@ export class MobileOptimization {
   }
 
   /**
-   * Passt die UI-Elemente an die Bildschirmgröße an
+   * Passt die UI-Elemente an die Bildschirmgröße und Safe Areas an
    */
   resize(width, height) {
     if (!this.touchControls) return;
 
+    // Aktualisiere Safe Areas bei Größenänderung
+    this.updateSafeArea();
+
     const safeWidth = width - this.config.safeAreaInsets.left - this.config.safeAreaInsets.right;
     const safeHeight = height - this.config.safeAreaInsets.top - this.config.safeAreaInsets.bottom;
     const buttonSize = this.calculateButtonSize();
+    const spacing = this.config.minTouchSpacing;
 
-    const positions = {
-      left: {
-        x: this.config.safeAreaInsets.left + buttonSize,
-        y: height - this.config.safeAreaInsets.bottom - buttonSize
-      },
-      right: {
-        x: width - this.config.safeAreaInsets.right - buttonSize,
-        y: height - this.config.safeAreaInsets.bottom - buttonSize
-      },
-      shoot: {
-        x: width / 2,
-        y: height - this.config.safeAreaInsets.bottom - buttonSize
-      }
-    };
+    // Intelligente Button-Positionierung basierend auf Orientierung
+    const isPortrait = height > width;
+    let positions;
 
+    if (isPortrait) {
+      // Portrait: Buttons am unteren Rand, horizontal angeordnet
+      const bottomY = height - this.config.safeAreaInsets.bottom - buttonSize - spacing;
+      const centerX = width / 2;
+      const buttonSpacing = buttonSize + spacing;
+
+      positions = {
+        left: {
+          x: centerX - buttonSpacing,
+          y: bottomY
+        },
+        shoot: {
+          x: centerX,
+          y: bottomY
+        },
+        right: {
+          x: centerX + buttonSpacing,
+          y: bottomY
+        }
+      };
+    } else {
+      // Landscape: Kompaktere Anordnung
+      const rightX = width - this.config.safeAreaInsets.right - buttonSize - spacing;
+      const centerY = height / 2;
+      const verticalSpacing = buttonSize * 0.8;
+
+      positions = {
+        left: {
+          x: this.config.safeAreaInsets.left + buttonSize + spacing,
+          y: height - this.config.safeAreaInsets.bottom - buttonSize - spacing
+        },
+        shoot: {
+          x: rightX,
+          y: centerY
+        },
+        right: {
+          x: rightX,
+          y: centerY + verticalSpacing
+        }
+      };
+    }
+
+    // Animiere Button-Positionen mit verbesserter Easing
     Object.entries(this.touchControls).forEach(([type, button]) => {
       const pos = positions[type];
       this.scene.tweens.add({
         targets: button,
         x: pos.x,
         y: pos.y,
-        scale: buttonSize / this.config.minButtonSize,
+        scale: 1, // Konsistente Skalierung
         duration: this.config.animationDuration,
-        ease: 'Power2'
+        ease: 'Back.easeOut'
       });
     });
 
-    this.touchOverlay
-      .setPosition(this.config.safeAreaInsets.left, this.config.safeAreaInsets.top)
-      .setSize(safeWidth, safeHeight * 0.8);
+    // Aktualisiere Touch-Overlay mit Safe Areas
+    if (this.touchOverlay) {
+      this.touchOverlay
+        .setPosition(this.config.safeAreaInsets.left, this.config.safeAreaInsets.top)
+        .setSize(safeWidth, safeHeight * 0.85); // Lasse Platz für Buttons
+    }
   }
 
   /**
@@ -394,5 +478,140 @@ export class MobileOptimization {
       Object.values(this.touchControls).forEach(control => control.destroy());
       this.touchOverlay.destroy();
     }
+  }
+
+  /**
+   * Richtet erweiterte Safe Area Unterstützung ein
+   */
+  updateSafeArea() {
+    // Prüfe auf CSS Environment Variables für Safe Areas
+    if (typeof window !== 'undefined' && window.CSS && window.CSS.supports) {
+      if (window.CSS.supports('padding: env(safe-area-inset-top)')) {
+        // Nutze CSS Environment Variables für moderne Browser
+        const style = getComputedStyle(document.documentElement);
+        this.config.safeAreaInsets = {
+          top: parseInt(style.getPropertyValue('--sat') || '0') || this.config.safeAreaInsets.top,
+          right: parseInt(style.getPropertyValue('--sar') || '0') || this.config.safeAreaInsets.right,
+          bottom: parseInt(style.getPropertyValue('--sab') || '0') || this.config.safeAreaInsets.bottom,
+          left: parseInt(style.getPropertyValue('--sal') || '0') || this.config.safeAreaInsets.left
+        };
+      }
+    }
+
+    // Fallback für Geräte ohne env() Support
+    if (!this.config.safeAreaInsets.top) {
+      this.detectNotchAndSafeAreas();
+    }
+  }
+
+  /**
+   * Erkennt Notch und Safe Areas auf älteren Geräten
+   */
+  detectNotchAndSafeAreas() {
+    const userAgent = navigator.userAgent;
+    
+    // iPhone X+ Serie Erkennung
+    if (/iPhone/.test(userAgent)) {
+      const screenHeight = window.screen.height;
+      const screenWidth = window.screen.width;
+      
+      // iPhone X+ Modelle haben typischerweise diese Auflösungen
+      if ((screenHeight === 812 && screenWidth === 375) ||  // iPhone X, XS
+          (screenHeight === 896 && screenWidth === 414) ||  // iPhone XR, XS Max
+          (screenHeight === 844 && screenWidth === 390) ||  // iPhone 12, 13
+          (screenHeight === 926 && screenWidth === 428)) {  // iPhone 12 Pro Max, 13 Pro Max
+        
+        this.config.safeAreaInsets = {
+          top: 44,
+          right: 0,
+          bottom: 34,
+          left: 0
+        };
+      }
+    }
+    
+    // Android mit Notch Erkennung (allgemeine Heuristik)
+    if (/Android/.test(userAgent) && window.screen.height > 1800) {
+      this.config.safeAreaInsets = {
+        top: 24,
+        right: 0,
+        bottom: 12,
+        left: 0
+      };
+    }
+  }
+
+  /**
+   * Richtet Trajektorien-Hilfssystem ein
+   */
+  setupTrajectoryHelpers() {
+    // Erstelle Trajektorien-Indikator für alle Geräte, aber mit unterschiedlicher Konfiguration
+    this.aimHelper = this.scene.add.graphics();
+    this.aimHelper.setDepth(100);
+    this.aimHelper.setVisible(false);
+
+    // Bestimme die Basis-Transparenz basierend auf Gerät
+    const baseAlpha = this.config.trajectoryOpacity || (this.isMobile ? 0.7 : 0.3);
+    
+    // Erstelle mehrere Trajektorien-Punkte für bessere Visualisierung
+    for (let i = 0; i < 8; i++) {
+      const alpha = baseAlpha - (i * 0.05);
+      const indicator = this.scene.add.circle(0, 0, 3, 0x00ff00, Math.max(alpha, 0.1));
+      indicator.setVisible(false);
+      indicator.setDepth(99);
+      this.trajectoryIndicators.push(indicator);
+    }
+  }
+
+  /**
+   * Zeigt Trajektorien-Hilfe basierend auf Touch-Position
+   */
+  showTrajectoryHelper(startX, startY, targetX, targetY) {
+    if (!this.aimHelper || !this.trajectoryIndicators.length) return;
+
+    const angle = Phaser.Math.Angle.Between(startX, startY, targetX, targetY);
+    const distance = Math.min(Phaser.Math.Distance.Between(startX, startY, targetX, targetY), 200);
+    
+    // Zeige Trajektorien-Punkte
+    this.trajectoryIndicators.forEach((indicator, index) => {
+      const progress = (index + 1) / this.trajectoryIndicators.length;
+      const pointDistance = distance * progress * 0.8;
+      
+      const x = startX + Math.cos(angle) * pointDistance;
+      const y = startY + Math.sin(angle) * pointDistance;
+      
+      indicator.setPosition(x, y);
+      indicator.setVisible(true);
+      
+      // Animiere die Punkte für bessere Sichtbarkeit
+      this.scene.tweens.add({
+        targets: indicator,
+        scaleX: 1.2,
+        scaleY: 1.2,
+        duration: 100,
+        yoyo: true,
+        ease: 'Power2'
+      });
+    });
+
+    // Zeichne Zielkreis mit konfigurierbarer Transparenz
+    this.aimHelper.clear();
+    const lineAlpha = this.config.trajectoryOpacity || (this.isMobile ? 0.7 : 0.4);
+    this.aimHelper.lineStyle(3, 0x00ff00, lineAlpha);
+    this.aimHelper.strokeCircle(targetX, targetY, 25);
+    this.aimHelper.setVisible(true);
+  }
+
+  /**
+   * Versteckt alle Trajektorien-Hilfen
+   */
+  hideTrajectoryHelper() {
+    if (this.aimHelper) {
+      this.aimHelper.setVisible(false);
+    }
+    
+    this.trajectoryIndicators.forEach(indicator => {
+      indicator.setVisible(false);
+    });
   }
 }

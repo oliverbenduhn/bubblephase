@@ -1,0 +1,260 @@
+/* Erweiterte Mobile Styles für Bubble Shooter */
+
+/* CSS Custom Properties für Safe Areas */
+:root {
+  --sat: env(safe-area-inset-top);
+  --sar: env(safe-area-inset-right);
+  --sab: env(safe-area-inset-bottom);
+  --sal: env(safe-area-inset-left);
+  
+  /* Touch-freundliche Größen */
+  --min-touch-target: 44px;
+  --recommended-touch-target: 48px;
+  --touch-spacing: 8px;
+  
+  /* Responsive Breakpoints */
+  --mobile-small: 320px;
+  --mobile-medium: 375px;
+  --mobile-large: 414px;
+  --tablet-portrait: 768px;
+}
+
+/* Enhanced Body Styles mit Safe Areas */
+body {
+  /* Safe Area Padding */
+  padding-top: var(--sat);
+  padding-right: var(--sar);
+  padding-bottom: var(--sab);
+  padding-left: var(--sal);
+  
+  /* Erweiterte Touch-Optimierungen */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  -khtml-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  
+  /* Prevent pull-to-refresh */
+  overscroll-behavior-y: contain;
+}
+
+/* Game Container mit Safe Areas */
+#phaser-game-container {
+  /* Berücksichtige Safe Areas bei der Positionierung */
+  width: calc(100vw - var(--sal) - var(--sar));
+  height: calc(100vh - var(--sat) - var(--sab));
+  margin-top: var(--sat);
+  margin-left: var(--sal);
+  margin-right: var(--sar);
+  margin-bottom: var(--sab);
+}
+
+/* Touch-freundliche UI-Elemente */
+.touch-button {
+  min-width: var(--min-touch-target);
+  min-height: var(--min-touch-target);
+  padding: var(--touch-spacing);
+  margin: var(--touch-spacing);
+  
+  /* Touch-Feedback */
+  transition: transform 0.15s ease, opacity 0.15s ease;
+}
+
+.touch-button:active {
+  transform: scale(0.95);
+  opacity: 0.7;
+}
+
+/* Responsive Layout für verschiedene Orientierungen */
+@media screen and (orientation: portrait) {
+  /* Portrait-spezifische Anpassungen */
+  :root {
+    --ui-scale: 1.0;
+  }
+  
+  #phaser-game-container {
+    /* Optimale Nutzung des verfügbaren Platzes im Portrait */
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .game-ui {
+    flex-direction: column;
+    align-items: center;
+  }
+  
+  .score-display {
+    position: fixed;
+    top: calc(var(--sat) + 10px);
+    left: calc(var(--sal) + 10px);
+    z-index: 100;
+  }
+  
+  .next-bubble-display {
+    position: fixed;
+    top: calc(var(--sat) + 10px);
+    right: calc(var(--sar) + 10px);
+    z-index: 100;
+  }
+}
+
+@media screen and (orientation: landscape) {
+  /* Landscape-spezifische Anpassungen */
+  :root {
+    --ui-scale: 0.9;
+  }
+  
+  #phaser-game-container {
+    /* Anpassung für Querformat */
+    display: flex;
+    flex-direction: row;
+  }
+  
+  .game-ui {
+    flex-direction: row;
+    justify-content: space-between;
+  }
+  
+  /* Seitliche UI-Anordnung im Landscape */
+  .score-display {
+    position: fixed;
+    top: calc(var(--sat) + 10px);
+    left: calc(var(--sal) + 10px);
+    z-index: 100;
+  }
+  
+  .controls-container {
+    position: fixed;
+    right: calc(var(--sar) + 10px);
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 100;
+  }
+}
+
+/* Device-spezifische Anpassungen */
+@media screen and (max-width: 320px) {
+  /* iPhone SE und sehr kleine Bildschirme */
+  :root {
+    --ui-scale: 0.8;
+    --min-touch-target: 40px;
+  }
+}
+
+@media screen and (min-width: 414px) {
+  /* iPhone Pro Max und größere Phones */
+  :root {
+    --ui-scale: 1.1;
+    --recommended-touch-target: 52px;
+  }
+}
+
+@media screen and (min-width: 768px) {
+  /* Tablets */
+  :root {
+    --ui-scale: 1.2;
+    --recommended-touch-target: 56px;
+  }
+}
+
+/* Notch-spezifische Anpassungen für iPhone X+ */
+@supports (padding: max(0px)) {
+  body {
+    padding-left: max(var(--sal), 20px);
+    padding-right: max(var(--sar), 20px);
+  }
+}
+
+/* Touch-optimierte Buttons */
+.game-button {
+  min-width: var(--recommended-touch-target);
+  min-height: var(--recommended-touch-target);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  backdrop-filter: blur(10px);
+  
+  /* Touch-Feedback */
+  transform: scale(1);
+  transition: transform 0.1s ease;
+}
+
+.game-button:active {
+  transform: scale(0.9);
+}
+
+/* Pause/Menu Button in Safe Area */
+.pause-button {
+  position: fixed;
+  top: calc(var(--sat) + 10px);
+  right: calc(var(--sar) + 10px);
+  z-index: 1000;
+  width: var(--recommended-touch-target);
+  height: var(--recommended-touch-target);
+}
+
+/* Responsive Text-Größen */
+.score-text {
+  font-size: calc(16px * var(--ui-scale));
+  font-weight: bold;
+  color: white;
+  text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+
+.game-title {
+  font-size: calc(24px * var(--ui-scale));
+  font-weight: bold;
+}
+
+.instruction-text {
+  font-size: calc(14px * var(--ui-scale));
+  opacity: 0.8;
+}
+
+/* Enhanced Focus für Accessibility */
+.touch-button:focus-visible {
+  outline: 3px solid #00ff00;
+  outline-offset: 2px;
+}
+
+/* Animation für besseres visuelles Feedback */
+@keyframes bubble-shoot-feedback {
+  0% { transform: scale(1) rotate(0deg); }
+  50% { transform: scale(1.1) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); }
+}
+
+.shooting-feedback {
+  animation: bubble-shoot-feedback 0.2s ease-out;
+}
+
+/* Touch-Indikator für Zielhilfe */
+.aim-indicator {
+  position: absolute;
+  pointer-events: none;
+  border: 2px solid rgba(0, 255, 0, 0.6);
+  border-radius: 50%;
+  background: rgba(0, 255, 0, 0.1);
+  transform: scale(0);
+  transition: transform 0.15s ease;
+}
+
+.aim-indicator.active {
+  transform: scale(1);
+}
+
+/* Verhindere Text-Selektion bei Touch */
+* {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+/* Status Bar Anpassungen für PWA */
+@media screen and (display-mode: standalone) {
+  body {
+    padding-top: max(var(--sat), 20px);
+  }
+}

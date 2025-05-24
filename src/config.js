@@ -1,4 +1,5 @@
-export const BUBBLE_RADIUS = 15; // Standardradius, kann angepasst werden
+// Mobile Bubble Shooter Konfiguration
+export const BUBBLE_RADIUS = 15; // Wird dynamisch berechnet
 
 export const BUBBLE_COLORS = {
     RED: 0xff0000,
@@ -9,7 +10,13 @@ export const BUBBLE_COLORS = {
     ORANGE: 0xffa500,
 };
 
-// Weitere Spielkonfigurationen können hier hinzugefügt werden
-// export const MIN_GROUP_SIZE = 3; // Beispiel
-// export const GAME_WIDTH = 800; // Beispiel
-// export const GAME_HEIGHT = 600; // Beispiel
+// Mobile-optimierte Spielkonfiguration
+export const MOBILE_CONFIG = {
+    MIN_GROUP_SIZE: 3,
+    MAX_ANGLE: 75, // Maximaler Schusswinkel (in Grad)
+    INITIAL_ROWS: 5,
+    GAME_OVER_LINE_OFFSET: 120,
+    SHOOT_POWER: 700,
+    UI_SCALE: 0.8,
+    TEXT_SIZE: 16
+};
