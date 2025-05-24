@@ -7,7 +7,7 @@ import { Collision } from './Collision';
 import { MobileOptimization } from './MobileOptimization';
 import { TouchMenu } from './TouchMenu';
 import { ColorGroup } from './ColorGroup';
-import { BUBBLE_COLORS } from './config';
+import { BUBBLE_COLORS, BUBBLE_RADIUS, CURRENT_BUBBLE_COLORS, switchColorTheme, getCurrentTheme, getRandomColorId, getAvailableColorIds, COLOR_THEMES } from './config';
 import bubbleParticlePath from './assets/bubble-particle.svg';
 
 // Eine einfache, leere Phaser-Szene
@@ -27,7 +27,7 @@ class BootScene extends Phaser.Scene {
         this.level = 1;
         this.isAttaching = false; // Verhindert mehrfache Bubble-Attachment
         this.MIN_GROUP_SIZE = 3; // Mindestgröße für eine Gruppe gleichfarbiger Bubbles
-        this.INITIAL_ROWS = 5; // Anzahl der Reihen, die zu Beginn mit Bubbles gefüllt werden
+        this.INITIAL_ROWS = 6; // Anzahl der Reihen, die zu Beginn mit Bubbles gefüllt werden
         this.INITIAL_COLOR_COUNT = 4; // Anzahl der verschiedenen Farben zu Beginn
         this.GAME_OVER_LINE_OFFSET = 150; // Abstand der Game Over Linie von unten
         
@@ -53,6 +53,9 @@ class BootScene extends Phaser.Scene {
         
         // Mobile Optimierung - wird in create() initialisiert
         this.mobileOptimization = null;
+        
+        // Hintergrund-Grafik für Theme-Wechsel
+        this.backgroundGradient = null;
     }
 
     addScore(points) {
@@ -81,18 +84,33 @@ class BootScene extends Phaser.Scene {
     }
 
     create() {
+        // Hole das aktuelle Theme, um den passenden Hintergrund zu erstellen
+        const currentTheme = getCurrentTheme();
+        const themeKey = currentTheme.themeKey;
+        const background = COLOR_THEMES[themeKey].background;
+        
+        // Erstelle Farbverlauf-Hintergrund basierend auf dem aktuellen Theme
+        this.backgroundGradient = this.add.graphics();
+        this.backgroundGradient.fillGradientStyle(
+            background.from, background.to, // Von Startfarbe zu Endfarbe
+            background.from, background.to, // Schräger Verlauf
+            0.8 // Alpha-Wert für leichte Transparenz
+        );
+        this.backgroundGradient.fillRect(0, 0, this.scale.width, this.scale.height);
+        this.backgroundGradient.setDepth(-10); // Hinter allem anderen
+
         // Mobile-optimierte Konstanten
         this.BUBBLE_RADIUS = 15; // Wird später neu berechnet
-        this.INITIAL_ROWS = 5;
+        this.INITIAL_ROWS = 6;
         this.GAME_OVER_LINE_OFFSET = 120;
         
         // Berechne zentrale Position für die Kanone
         const cannonY = this.scale.height - 60;
         const cannonX = this.scale.width / 2;
         
-        // Berechne Grid-Parameter - Exakt 8 Kugeln pro Reihe
-        const gridRows = 12;
-        const gridCols = 8; // Fest auf 8 Kugeln pro Reihe gesetzt
+        // Berechne Grid-Parameter - Exakt 12 Kugeln pro Reihe
+        const gridRows = 12; // Maximal 12 Reihen für Game Over
+        const gridCols = 12; // Fest auf 12 Kugeln pro Reihe gesetzt
         
         // Berechnung der verfügbaren Breite mit minimalem Padding
         const padding = 10;
@@ -133,8 +151,8 @@ class BootScene extends Phaser.Scene {
             uiScale: 0.8
         });
         
-        // Score-Text unten links anzeigen
-        this.scoreText = this.add.text(10, this.scale.height - 80, 'Score: 0', {
+        // Score-Text unten links anzeigen (über der Anleitung)
+        this.scoreText = this.add.text(10, this.scale.height - 60, 'Score: 0', {
             fontSize: '16px',
             fill: '#fff',
             backgroundColor: '#000',
@@ -142,20 +160,24 @@ class BootScene extends Phaser.Scene {
         });
         this.scoreText.setDepth(10);
         
-        // Game Over Linie
-        this.gameOverY = this.scale.height - this.GAME_OVER_LINE_OFFSET;
+        // Game Over Linie basierend auf Grid-Position (nach 12. Reihe, wo tatsächlich Game Over eintritt)
+        const gameOverRowPosition = this.grid.gridToPixel(11, 0); // 12. Reihe (0-basiert, also Index 11)
+        this.gameOverY = gameOverRowPosition.y + this.BUBBLE_RADIUS; // Etwas unterhalb der 12. Reihe
         this.gameOverLine = this.add.graphics();
         this.gameOverLine.lineStyle(2, 0xff0000, 0.5);
         this.gameOverLine.lineBetween(0, this.gameOverY, this.scale.width, this.gameOverY);
         this.gameOverLine.setDepth(1);
         
-        // Spiel-Anweisungen oben anzeigen
-        this.add.text(this.scale.width / 2, 20, 'Ziele und schieße! 3+ gleiche Farben = Punkte', {
+        // Spiel-Anweisungen unten links anzeigen (unter dem Score)
+        this.add.text(10, this.scale.height - 30, 'Ziele und schieße! 3+ gleiche Farben = Punkte', {
             fontSize: '12px',
             fill: '#fff',
             backgroundColor: '#000',
             padding: { x: 10, y: 5 }
-        }).setOrigin(0.5, 0).setDepth(10);
+        }).setDepth(10);
+        
+        // Color Theme Button unten rechts
+        this.createColorThemeButton();
         
         // Initialisiere Touch-Menü
         this.touchMenu = new TouchMenu(this, 0.8);
@@ -192,13 +214,34 @@ class BootScene extends Phaser.Scene {
                 // Mindest-Zielzeit von 100ms um versehentliche Schüsse zu vermeiden
                 const aimDuration = pointer.time - this.aimStartTime;
                 if (aimDuration > 100) {
+                    // Berechne den Winkel zwischen Kanone und Zielpunkt
                     const angle = Phaser.Math.Angle.Between(
                         this.cannon.x,
                         this.cannon.y,
                         pointer.x,
                         pointer.y
                     );
-                    this.shootBubble(angle);
+                    
+                    // Winkelbegrenzung implementieren
+                    // Konvertiere in Grad für bessere Lesbarkeit
+                    let angleInDegrees = Phaser.Math.RadToDeg(angle);
+                    
+                    // Normalisiere den Winkel auf Bereich -180 bis 180
+                    if (angleInDegrees > 180) angleInDegrees -= 360;
+                    
+                    // Begrenzungen: Nicht nach unten (-20 bis -160) und nicht direkt seitlich
+                    const MIN_ANGLE = -160; // Nicht zu weit nach rechts (fast nach unten)
+                    const MAX_ANGLE = -20;  // Nicht zu weit nach links (fast nach unten)
+                    
+                    // Winkel auf erlaubten Bereich begrenzen
+                    let limitedAngle = angle;
+                    if (angleInDegrees > MAX_ANGLE && angleInDegrees < 90) {
+                        limitedAngle = Phaser.Math.DegToRad(MAX_ANGLE);
+                    } else if (angleInDegrees < MIN_ANGLE && angleInDegrees > -270) {
+                        limitedAngle = Phaser.Math.DegToRad(MIN_ANGLE);
+                    }
+                    
+                    this.shootBubble(limitedAngle);
                 }
                 this.isAiming = false;
                 this.aimLine.setVisible(false);
@@ -217,31 +260,147 @@ class BootScene extends Phaser.Scene {
         this.grid.initializeWithBubbles(this.INITIAL_ROWS);
     }
 
+    // Erstelle Color Theme Button unten rechts
+    createColorThemeButton() {
+        const buttonWidth = 80;
+        const buttonHeight = 35;
+        const padding = 10;
+        
+        const buttonX = this.scale.width - buttonWidth - padding;
+        const buttonY = this.scale.height - buttonHeight - padding;
+        
+        // Button-Hintergrund
+        this.colorThemeButton = this.add.graphics();
+        this.colorThemeButton.fillStyle(0x444444, 0.8);
+        this.colorThemeButton.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+        this.colorThemeButton.lineStyle(2, 0x666666, 1);
+        this.colorThemeButton.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+        this.colorThemeButton.setDepth(20);
+        
+        // Button-Text
+        const currentTheme = getCurrentTheme();
+        this.colorThemeText = this.add.text(buttonX + buttonWidth/2, buttonY + buttonHeight/2, currentTheme.themeName, {
+            fontSize: '10px',
+            fill: '#fff',
+            fontStyle: 'bold'
+        }).setOrigin(0.5).setDepth(21);
+        
+        // Mache Button interaktiv
+        const buttonZone = this.add.zone(buttonX, buttonY, buttonWidth, buttonHeight)
+            .setOrigin(0)
+            .setInteractive()
+            .setDepth(22);
+            
+        buttonZone.on('pointerdown', () => {
+            this.switchColorTheme();
+        });
+        
+        // Visuelles Feedback beim Hover
+        buttonZone.on('pointerover', () => {
+            this.colorThemeButton.clear();
+            this.colorThemeButton.fillStyle(0x555555, 0.9);
+            this.colorThemeButton.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+            this.colorThemeButton.lineStyle(2, 0x888888, 1);
+            this.colorThemeButton.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+        });
+        
+        buttonZone.on('pointerout', () => {
+            this.colorThemeButton.clear();
+            this.colorThemeButton.fillStyle(0x444444, 0.8);
+            this.colorThemeButton.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+            this.colorThemeButton.lineStyle(2, 0x666666, 1);
+            this.colorThemeButton.strokeRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 8);
+        });
+        
+        this.colorThemeButtonZone = buttonZone;
+    }
+
+    // Wechsle das Farbthema
+    switchColorTheme() {
+        const newTheme = switchColorTheme();
+        const themeKey = newTheme.themeKey;
+        
+        // Aktualisiere Button-Text
+        this.colorThemeText.setText(newTheme.themeName);
+        
+        // Aktualisiere alle existierenden Bubbles im Grid mit neuen Farben
+        this.updateGridColors();
+        
+        // Aktualisiere die Shooting Bubble und Next Bubble
+        this.updateShootingBubbleColors();
+        
+        // Aktualisiere den Hintergrundgradienten
+        if (this.backgroundGradient) {
+            // Lösche den alten Gradienten
+            this.backgroundGradient.clear();
+            
+            // Hole die Farbwerte aus dem aktuellen Theme
+            const background = COLOR_THEMES[themeKey].background;
+            
+            // Zeichne neuen Gradienten
+            this.backgroundGradient.fillGradientStyle(
+                background.from, background.to,
+                background.from, background.to,
+                0.8
+            );
+            this.backgroundGradient.fillRect(0, 0, this.scale.width, this.scale.height);
+        }
+        
+        console.log(`🎨 Farbthema gewechselt zu: ${newTheme.themeName}`);
+    }
+
+    // Aktualisiere Farben aller Bubbles im Grid
+    updateGridColors() {
+        if (!this.grid) return;
+        
+        this.grid.forEachBubble((bubble, row, col) => {
+            if (bubble && bubble.gameObject) {
+                // Bubbles haben jetzt logische Farb-IDs - einfach visuelle Farbe aktualisieren
+                bubble.updateVisualColor();
+            }
+        });
+    }
+
+    // Aktualisiere Shooting Bubble und Next Bubble Farben
+    updateShootingBubbleColors() {
+        // Shooting Bubble aktualisieren
+        if (this.shootingBubble && this.shootingBubble.gameObject) {
+            this.shootingBubble.updateVisualColor();
+        }
+        
+        // Next Bubble aktualisieren
+        if (this.nextBubbleDisplay && this.nextBubbleDisplay.gameObject) {
+            this.nextBubbleDisplay.updateVisualColor();
+        }
+    }
+
     // Bereite die nächste Blase vor (intelligente Farbauswahl)
     prepareNextBubble() {
-        // Sammle alle verfügbaren Farben aus dem aktuellen Grid
-        const gridColors = new Set();
+        // Sammle alle verfügbaren Farb-IDs aus dem aktuellen Grid
+        const gridColorIds = new Set();
         for (let row = 0; row < this.grid.rows; row++) {
             for (let col = 0; col < this.grid.cols; col++) {
                 const bubble = this.grid.getBubble(row, col);
                 if (bubble) {
-                    gridColors.add(bubble.color);
+                    gridColorIds.add(bubble.colorId);
                 }
             }
         }
 
-        // Wenn keine Bubbles mehr im Grid sind, verwende alle verfügbaren Farben
-        const availableColors = gridColors.size > 0 ? Array.from(gridColors) : Object.values(BUBBLE_COLORS);
+        // Verwende verfügbare Farb-IDs
+        const availableColorIds = getAvailableColorIds();
         
-        // Füge gelegentlich neue Farben hinzu für Abwechslung (30% Chance)
-        if (Math.random() < 0.3 && gridColors.size > 0) {
-            const allColors = Object.values(BUBBLE_COLORS);
-            const newColor = allColors[Math.floor(Math.random() * allColors.length)];
-            availableColors.push(newColor);
+        // Wenn keine Bubbles mehr im Grid sind, verwende alle verfügbaren Farb-IDs
+        const selectableColorIds = gridColorIds.size > 0 ? Array.from(gridColorIds) : availableColorIds;
+        
+        // Füge gelegentlich neue Farb-IDs hinzu für Abwechslung (30% Chance)
+        if (Math.random() < 0.3 && gridColorIds.size > 0) {
+            const newColorId = availableColorIds[Math.floor(Math.random() * availableColorIds.length)];
+            selectableColorIds.push(newColorId);
         }
 
-        const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
-        this.nextBubble = new Bubble(this, 0, 0, this.BUBBLE_RADIUS, randomColor);
+        const randomColorId = selectableColorIds[Math.floor(Math.random() * selectableColorIds.length)];
+        this.nextBubble = new Bubble(this, 0, 0, this.BUBBLE_RADIUS, randomColorId);
     }
 
     // Lade die vorbereitete Blase in die Kanone
@@ -276,12 +435,17 @@ class BootScene extends Phaser.Scene {
             this.shootingBubble.gameObject.body.setImmovable(false); // Kann bewegt werden beim Schuss
         }
         
-        // Nächste Blase vorbereiten und anzeigen
+        // Nächste Blase vorbereiten und anzeigen (rechts von der Schuss-Kugel mit kleinem Abstand)
         this.prepareNextBubble();
         if (this.nextBubbleDisplay) {
             this.nextBubbleDisplay.destroy();
         }
-        this.nextBubbleDisplay = new Bubble(this, this.scale.width - 60, this.scale.height - 120, this.BUBBLE_RADIUS, this.nextBubble.color);
+        
+        // Position rechts von der Kanone mit kleinem Abstand (etwa 3x Bubble-Radius)
+        const nextBubbleX = cannonX + (this.BUBBLE_RADIUS * 3);
+        const nextBubbleY = cannonY;
+        
+        this.nextBubbleDisplay = new Bubble(this, nextBubbleX, nextBubbleY, this.BUBBLE_RADIUS * 0.8, this.nextBubble.colorId);
         this.nextBubbleDisplay.draw();
         
         // Setze höhere Tiefe für Next Bubble Display
@@ -601,10 +765,85 @@ class BootScene extends Phaser.Scene {
         });
     }
 
-    // Methode zum Aktualisieren der Ziellinie mit verbessertem Touch-Feedback
+    // Simuliert die komplette Trajektorie mit Kollisionen und Wandabpraller
+    simulateTrajectory(startX, startY, angle, maxBounces = 3, timeStep = 1/60, maxTime = 3) {
+        const bubbleSpeed = this.shooter ? this.shooter.bubbleSpeed : 800;
+        let currentX = startX;
+        let currentY = startY;
+        let velocityX = bubbleSpeed * Math.cos(angle);
+        let velocityY = bubbleSpeed * Math.sin(angle);
+        
+        const trajectory = [{ x: currentX, y: currentY }];
+        let bounces = 0;
+        let totalTime = 0;
+        
+        while (totalTime < maxTime && bounces <= maxBounces) {
+            // Kleine Zeitschritte für präzise Simulation
+            currentX += velocityX * timeStep;
+            currentY += velocityY * timeStep;
+            totalTime += timeStep;
+            
+            // Prüfe Wandkollisionen
+            let collisionDetected = false;
+            
+            // Linke Wand
+            if (currentX - BUBBLE_RADIUS <= 0) {
+                currentX = BUBBLE_RADIUS;
+                velocityX = -velocityX;
+                bounces++;
+                collisionDetected = true;
+            }
+            // Rechte Wand
+            else if (currentX + BUBBLE_RADIUS >= this.scale.width) {
+                currentX = this.scale.width - BUBBLE_RADIUS;
+                velocityX = -velocityX;
+                bounces++;
+                collisionDetected = true;
+            }
+            
+            // Obere Wand
+            if (currentY - BUBBLE_RADIUS <= this.grid.yOffset) {
+                // Stoppe bei oberer Grenze
+                break;
+            }
+            
+            // Prüfe Grid-Kollisionen
+            if (this.grid) {
+                let gridCollision = false;
+                
+                // Teste Kollision mit vorhandenen Bubbles
+                this.grid.forEachBubble((bubble, row, col) => {
+                    if (bubble) {
+                        const dx = currentX - bubble.x;
+                        const dy = currentY - bubble.y;
+                        const distance = Math.sqrt(dx * dx + dy * dy);
+                        
+                        if (distance <= BUBBLE_RADIUS * 2) {
+                            gridCollision = true;
+                            return; // Stoppe bei erster Kollision
+                        }
+                    }
+                });
+                
+                if (gridCollision) {
+                    break;
+                }
+            }
+            
+            // Füge Punkt zur Trajektorie hinzu (alle paar Schritte für Performance)
+            if (trajectory.length === 1 || totalTime % (timeStep * 3) < timeStep) {
+                trajectory.push({ x: currentX, y: currentY });
+            }
+        }
+        
+        return trajectory;
+    }
+
+    // Methode zum Aktualisieren der Ziellinie mit erweiterter Kollisionssimulation
     updateAim(pointerX, pointerY) {
         if (!this.aimLine || !this.cannon) return;
 
+        // Berechne den Winkel zwischen Kanone und Zielpunkt
         const angle = Phaser.Math.Angle.Between(
             this.cannon.x,
             this.cannon.y,
@@ -612,31 +851,62 @@ class BootScene extends Phaser.Scene {
             pointerY
         );
 
-        const distance = 200;
-        const endX = this.cannon.x + Math.cos(angle) * distance;
-        const endY = this.cannon.y + Math.sin(angle) * distance;
+        // Winkelbegrenzung implementieren
+        // Konvertiere in Grad für bessere Lesbarkeit
+        let angleInDegrees = Phaser.Math.RadToDeg(angle);
+        
+        // Normalisiere den Winkel auf Bereich -180 bis 180
+        if (angleInDegrees > 180) angleInDegrees -= 360;
+        
+        // In Phaser ist -90 Grad nach oben, 0 Grad nach rechts, 90 Grad nach unten
+        // Begrenzungen: Nicht nach unten (-20 bis -160) und nicht direkt seitlich (-70 bis -110)
+        const MIN_ANGLE = -160; // Nicht zu weit nach rechts (fast nach unten)
+        const MAX_ANGLE = -20;  // Nicht zu weit nach links (fast nach unten)
+        
+        // Winkel auf erlaubten Bereich begrenzen
+        let limitedAngle = angle;
+        if (angleInDegrees > MAX_ANGLE && angleInDegrees < 90) {
+            limitedAngle = Phaser.Math.DegToRad(MAX_ANGLE);
+        } else if (angleInDegrees < MIN_ANGLE && angleInDegrees > -270) {
+            limitedAngle = Phaser.Math.DegToRad(MIN_ANGLE);
+        }
+        
+        // Simuliere die realistische Trajektorie mit dem begrenzten Winkel
+        const trajectory = this.simulateTrajectory(this.cannon.x, this.cannon.y, limitedAngle);
 
         // Ziellinie mit besserem visuellen Feedback
         this.aimLine.clear();
         
-        // Wenn gerade gezielt wird, dickere und hellere Linie
-        if (this.isAiming) {
-            this.aimLine.lineStyle(4, 0x00ff00, 0.9); // Grün und dicker beim Zielen
-            
-            // Zusätzliche gestrichelte Linie für bessere Sichtbarkeit
-            for (let i = 0; i < distance; i += 20) {
-                const x1 = this.cannon.x + Math.cos(angle) * i;
-                const y1 = this.cannon.y + Math.sin(angle) * i;
-                const x2 = this.cannon.x + Math.cos(angle) * (i + 10);
-                const y2 = this.cannon.y + Math.sin(angle) * (i + 10);
-                this.aimLine.lineBetween(x1, y1, x2, y2);
+        // Zeichne die simulierte Trajektorie als dünne Linie mit vielen Punkten
+        if (trajectory.length > 1) {
+            if (this.isAiming) {
+                // Dünne, helle Linie beim aktiven Zielen
+                this.aimLine.lineStyle(1.5, 0x00ff00, 0.8);
+            } else {
+                // Sehr dünne Linie beim Hover
+                this.aimLine.lineStyle(1, 0xffffff, 0.5);
             }
-        } else {
-            this.aimLine.lineStyle(2, 0xffffff, 0.6); // Normal beim Hover
-            this.aimLine.lineBetween(this.cannon.x, this.cannon.y, endX, endY);
+            
+            // Zeichne die Trajektorie als verbundene Linie
+            this.aimLine.beginPath();
+            this.aimLine.moveTo(trajectory[0].x, trajectory[0].y);
+            
+            for (let i = 1; i < trajectory.length; i++) {
+                this.aimLine.lineTo(trajectory[i].x, trajectory[i].y);
+            }
+            
+            this.aimLine.strokePath();
+            
+            // Zusätzlich: Zeichne kleine Punkte entlang der Trajektorie für bessere Sichtbarkeit
+            if (this.isAiming) {
+                this.aimLine.fillStyle(0x00ff00, 0.6);
+                for (let i = 0; i < trajectory.length; i += 10) { // Jeder 10. Punkt (weniger Punkte)
+                    this.aimLine.fillCircle(trajectory[i].x, trajectory[i].y, 1.5);
+                }
+            }
         }
 
-        // Erweiterte Trajektorien-Hilfe anzeigen
+        // Erweiterte Trajektorien-Hilfe anzeigen (für zusätzliche Visualisierung)
         if (this.mobileOptimization) {
             this.mobileOptimization.showTrajectoryHelper(
                 this.cannon.x,
@@ -649,20 +919,20 @@ class BootScene extends Phaser.Scene {
 
     // Game Over Detection
     checkGameOver() {
-        const gameHeight = this.scale.height;
-        const gameOverLine = gameHeight - this.GAME_OVER_LINE_OFFSET;
-
-        // Prüfe alle Bubbles im Grid
+        // Prüfe zuerst, ob bereits 12 Reihen mit Bubbles gefüllt sind
+        let maxRowWithBubbles = -1;
         for (let row = 0; row < this.grid.rows; row++) {
             for (let col = 0; col < this.grid.cols; col++) {
                 if (this.grid.getBubble(row, col)) {
-                    const position = this.grid.gridToPixel(row, col);
-                    if (position.y >= gameOverLine) {
-                        this.handleGameOver();
-                        return true;
-                    }
+                    maxRowWithBubbles = Math.max(maxRowWithBubbles, row);
                 }
             }
+        }
+
+        // Game Over wenn 12 Reihen erreicht sind (Index 11, da 0-basiert)
+        if (maxRowWithBubbles >= 11) {
+            this.handleGameOver();
+            return true;
         }
 
         // Prüfe auch, ob keine Bubbles mehr vorhanden sind (Victory)
@@ -740,10 +1010,25 @@ class BootScene extends Phaser.Scene {
     // Mobile Event-Handler
     handleMobileAim(angle) {
         if (this.currentState === this.gameStates.PLAYING && this.canShoot) {
+            // Winkel zusätzlich prüfen und begrenzen (Sicherheitsmaßnahme)
+            let angleInDegrees = Phaser.Math.RadToDeg(angle);
+            if (angleInDegrees > 180) angleInDegrees -= 360;
+            
+            const MIN_ANGLE = -160;
+            const MAX_ANGLE = -20;
+            
+            // Winkel auf erlaubten Bereich begrenzen
+            let limitedAngle = angle;
+            if (angleInDegrees > MAX_ANGLE && angleInDegrees < 90) {
+                limitedAngle = Phaser.Math.DegToRad(MAX_ANGLE);
+            } else if (angleInDegrees < MIN_ANGLE && angleInDegrees > -270) {
+                limitedAngle = Phaser.Math.DegToRad(MIN_ANGLE);
+            }
+            
             // Konvertiere Winkel zu Zielkoordinaten für updateAim
             const distance = 200;
-            const targetX = this.cannon.x + Math.cos(angle) * distance;
-            const targetY = this.cannon.y + Math.sin(angle) * distance;
+            const targetX = this.cannon.x + Math.cos(limitedAngle) * distance;
+            const targetY = this.cannon.y + Math.sin(limitedAngle) * distance;
             this.updateAim(targetX, targetY);
             this.aimLine.setVisible(true);
         }

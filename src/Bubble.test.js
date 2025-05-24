@@ -1,3 +1,4 @@
+import { TEST_COLOR_MAP } from './test-utils';
 import { Bubble, BUBBLE_COLORS, BUBBLE_RADIUS } from './Bubble';
 
 // Mock für die Phaser-Szene, da wir keine echte Szene im Test benötigen
@@ -31,30 +32,32 @@ describe('Bubble', () => {
     const x = 50;
     const y = 100;
     const radius = BUBBLE_RADIUS;
-    const color = BUBBLE_COLORS.BLUE;
+    const colorId = TEST_COLOR_MAP.BLUE; // Dies ist jetzt die logische ID
 
-    const bubble = new Bubble(mockScene, x, y, radius, color);
+    const bubble = new Bubble(mockScene, x, y, radius, colorId);
 
     expect(bubble.scene).toBe(mockScene);
     expect(bubble.x).toBe(x);
     expect(bubble.y).toBe(y);
     expect(bubble.radius).toBe(radius);
-    expect(bubble.color).toBe(color);
+    expect(bubble.colorId).toBe(colorId); // Teste die logische ID
+    expect(bubble.color).toBe(0x0000ff); // Teste den aufgelösten Farbwert (Blau)
     expect(bubble.gameObject).toBeNull(); // Initial kein Phaser-Grafikobjekt
   });
 
   test('draw Methode sollte ein Phaser Circle Objekt erstellen und zurückgeben', () => {
-    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
     const graphicObject = bubble.draw();
 
-    expect(mockScene.add.circle).toHaveBeenCalledWith(0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+    // Die draw Methode sollte den aufgelösten Farbwert verwenden, nicht die logische ID
+    expect(mockScene.add.circle).toHaveBeenCalledWith(0, 0, BUBBLE_RADIUS, 0xff0000); // Rot
     expect(graphicObject).toBeDefined();
     expect(graphicObject.setStrokeStyle).toHaveBeenCalledWith(1, 0x000000, 0.8);
     expect(bubble.gameObject).toBe(graphicObject);
   });
 
   test('draw Methode sollte ein existierendes gameObject vor dem Neuzeichnen zerstören', () => {
-    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
     const firstGraphicObject = bubble.draw(); // Erstes Zeichnen
 
     // Stelle sicher, dass die destroy-Methode des ersten Objekts aufgerufen wird,
@@ -74,7 +77,7 @@ describe('Bubble', () => {
 
 
   test('setPosition sollte die x und y Eigenschaften aktualisieren und das gameObject verschieben', () => {
-    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.GREEN);
+    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
     bubble.draw(); // gameObject muss existieren
 
     const newX = 150;
@@ -87,7 +90,7 @@ describe('Bubble', () => {
   });
 
   test('destroy Methode sollte das gameObject zerstören und auf null setzen', () => {
-    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.YELLOW);
+    const bubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.YELLOW);
     const graphicObject = bubble.draw();
 
     bubble.destroy();

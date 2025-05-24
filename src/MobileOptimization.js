@@ -301,10 +301,30 @@ export class MobileOptimization {
    * Behandelt das Zielen
    */
   handleAiming(pointer) {
-    const angle = Phaser.Math.Angle.Between(
+    let angle = Phaser.Math.Angle.Between(
       this.scene.width / 2, this.scene.height,
       pointer.x, pointer.y
     );
+    
+    // Winkelbegrenzung implementieren (gleiche Logik wie in PhaserGame.jsx)
+    // Konvertiere in Grad für bessere Lesbarkeit
+    let angleInDegrees = Phaser.Math.RadToDeg(angle);
+    
+    // Normalisiere den Winkel auf Bereich -180 bis 180
+    if (angleInDegrees > 180) angleInDegrees -= 360;
+    
+    // In Phaser ist -90 Grad nach oben, 0 Grad nach rechts, 90 Grad nach unten
+    // Begrenzungen: Nicht nach unten (-20 bis -160) und nicht direkt seitlich (-70 bis -110)
+    const MIN_ANGLE = -160; // Nicht zu weit nach rechts (fast nach unten)
+    const MAX_ANGLE = -20;  // Nicht zu weit nach links (fast nach unten)
+    
+    // Winkel auf erlaubten Bereich begrenzen
+    if (angleInDegrees > MAX_ANGLE && angleInDegrees < 90) {
+        angle = Phaser.Math.DegToRad(MAX_ANGLE);
+    } else if (angleInDegrees < MIN_ANGLE && angleInDegrees > -270) {
+        angle = Phaser.Math.DegToRad(MIN_ANGLE);
+    }
+    
     // Diese Methode sollte von der Game-Szene überschrieben werden
     this.scene.emit('mobileAim', angle);
   }

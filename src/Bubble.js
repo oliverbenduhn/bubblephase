@@ -1,11 +1,18 @@
+import { getColorValue } from './config.js';
+
 export class Bubble {
-  constructor(scene, x, y, radius, color) {
+  constructor(scene, x, y, radius, colorId) {
     this.scene = scene;
     this.x = x;
     this.y = y;
     this.radius = radius;
-    this.color = color;
+    this.colorId = colorId; // Logische Farb-ID (z.B. 'COLOR_A')
     this.gameObject = null; // Wird später das Phaser Grafikobjekt halten
+  }
+
+  // Getter für aktuelle Farbwert basierend auf Theme
+  get color() {
+    return getColorValue(this.colorId);
   }
 
   // Methode zum Zeichnen der Bubble
@@ -13,8 +20,16 @@ export class Bubble {
     if (this.gameObject) {
       this.gameObject.destroy(); // Altes Objekt entfernen, falls vorhanden
     }
-    // Erstelle einen physikalischen Kreis
-    this.gameObject = this.scene.add.circle(this.x, this.y, this.radius, this.color);
+    
+    // Debug: Überprüfe die Farbwerte
+    const colorValue = this.color;
+    console.log(`🎨 Drawing bubble with colorId: ${this.colorId}, colorValue: 0x${colorValue?.toString(16)}`);
+    
+    // Fallback-Farbe falls undefined
+    const safeColor = colorValue || 0xff0000; // Rot als Fallback
+    
+    // Erstelle einen physikalischen Kreis mit der aktuellen Theme-Farbe
+    this.gameObject = this.scene.add.circle(this.x, this.y, this.radius, safeColor);
     // Aktiviere die Physik für die Blase
     this.scene.physics.add.existing(this.gameObject, false);
     // Setze die Kollisionsbox
@@ -28,6 +43,13 @@ export class Bubble {
     this.gameObject.body.setVelocity(0, 0);
     // Speichere eine Referenz auf die Bubble-Instanz im GameObject
     return this.gameObject;
+  }
+
+  // Methode zum Aktualisieren der visuellen Farbe (für Theme-Wechsel)
+  updateVisualColor() {
+    if (this.gameObject) {
+      this.gameObject.setFillStyle(this.color);
+    }
   }
 
   // Methode zum Setzen der Position

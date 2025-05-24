@@ -1,5 +1,5 @@
 // Ensure BUBBLE_RADIUS and BUBBLE_COLORS are correctly imported from config.js
-import { BUBBLE_RADIUS, BUBBLE_COLORS } from './config';
+import { BUBBLE_RADIUS, BUBBLE_COLORS, CURRENT_BUBBLE_COLORS, getRandomColorId } from './config';
 import { Bubble } from './Bubble';
 
 export class Grid {
@@ -175,13 +175,12 @@ export class Grid {
 
   // Initialisiert das Gitter mit einer bestimmten Anzahl von Reihen mit Bubbles
   initializeWithBubbles(numRowsToFill) {
-    const availableColors = Object.values(BUBBLE_COLORS);
     for (let r = 0; r < Math.min(numRowsToFill, this.rows); r++) {
       const colsInThisRow = this.cols - (r % 2 === 0 ? 0 : 1); // Kleine Anpassung für Hex-Optik
       for (let c = 0; c < colsInThisRow; c++) {
-        const randomColor = availableColors[Math.floor(Math.random() * availableColors.length)];
+        const randomColorId = getRandomColorId(); // Verwende logische Farb-ID
         const { x, y } = this.gridToPixel(r, c);
-        const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, randomColor);
+        const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, randomColorId);
         bubble.setPosition(x, y); // Explizit die Position setzen
         bubble.draw(); // Zeichne die Bubble in der Szene
         this.grid[r][c] = bubble;
@@ -259,8 +258,8 @@ export class Grid {
       for (let c = 0; c < this.cols; c++) {
         const bubble = this.grid[r][c];
         if (bubble) {
-          // Speichere nur die notwendigen Daten der Bubble (z.B. Farbe)
-          serializedGrid[r][c] = { color: bubble.color };
+          // Speichere die logische Farb-ID statt des tatsächlichen Farbwerts
+          serializedGrid[r][c] = { colorId: bubble.colorId };
         } else {
           serializedGrid[r][c] = null;
         }
@@ -292,7 +291,8 @@ export class Grid {
         const bubbleData = serializedGrid[r][c];
         if (bubbleData) {
           const { x, y } = this.gridToPixel(r, c);
-          const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, bubbleData.color);
+          // Verwende die logische Farb-ID statt des direkten Farbwerts
+          const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, bubbleData.colorId);
           bubble.setPosition(x, y);
           bubble.draw();
           this.grid[r][c] = bubble;

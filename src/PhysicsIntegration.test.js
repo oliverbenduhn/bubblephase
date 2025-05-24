@@ -1,3 +1,4 @@
+import { TEST_COLOR_MAP } from './test-utils';
 // Neue Test-Datei für fehlende Physik-Integrationstests
 import { Grid } from './Grid';
 import { Bubble, BUBBLE_COLORS } from './Bubble';
@@ -233,12 +234,12 @@ describe('Physics Integration Tests', () => {
   describe('Complete Shot Sequence', () => {
     test('should handle complete shot: projectile → collision → attachment → group removal → gravity', () => {
       // Setup: Grid mit einigen Bubbles
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
-      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
-      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE));
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
+      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE));
       
       // Simuliere Schuss
-      const shootingBubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+      const shootingBubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
       const angle = shooter.calculateAngle(grid.gridToPixel(0, 2).x, grid.gridToPixel(0, 2).y);
       const velocity = shooter.calculateVelocity(angle);
       
@@ -274,7 +275,7 @@ describe('Physics Integration Tests', () => {
       shootingBubble.x += shootingBubble.velocityX * 0.1; // Bewegung nach Reflexion
       
       // Teste Kollision mit Grid-Bubble
-      grid.addBubble(2, 2, new Bubble(mockScene, 200, 200, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE));
+      grid.addBubble(2, 2, new Bubble(mockScene, 200, 200, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE));
       const gridCollision = Collision.checkGridCollision(shootingBubble, grid);
       // Sollte nach der Reflexion möglicherweise kollidieren
     });
@@ -304,17 +305,17 @@ describe('Physics Integration Tests', () => {
     test('should handle cascading gravity effects', () => {
       // Setup: Turmartige Struktur die nach Gruppenentfernung fällt
       // Basis (wird entfernt)
-      grid.addBubble(5, 3, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
-      grid.addBubble(5, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
-      grid.addBubble(5, 5, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
+      grid.addBubble(5, 3, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
+      grid.addBubble(5, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
+      grid.addBubble(5, 5, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
       
       // Turm darüber (sollte fallen)
-      grid.addBubble(4, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE));
-      grid.addBubble(3, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.GREEN));
+      grid.addBubble(4, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE));
+      grid.addBubble(3, 4, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN));
       
       // Verbindung zur Decke
       for (let row = 0; row < 3; row++) {
-        grid.addBubble(row, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.YELLOW));
+        grid.addBubble(row, 0, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.YELLOW));
       }
       
       // Entferne die rote Basis-Gruppe
@@ -360,7 +361,7 @@ describe('Physics Integration Tests', () => {
       for (let row = 0; row < grid.rows; row++) {
         for (let col = 0; col < grid.cols; col++) {
           if (!(row === 2 && col === 3)) { // Lasse eine Zelle frei
-            grid.addBubble(row, col, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED));
+            grid.addBubble(row, col, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED));
           }
         }
       }

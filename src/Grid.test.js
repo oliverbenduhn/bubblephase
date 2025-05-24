@@ -1,7 +1,8 @@
 // filepath: /home/oliverbenduhn/Dokumente/projekte/bubblephase/src/Grid.test.js
 import { Grid } from './Grid';
 import { Bubble, BUBBLE_COLORS } from './Bubble';
-import { BUBBLE_RADIUS } from './config';
+import { BUBBLE_RADIUS, BUBBLE_COLOR_IDS } from './config';
+import { TEST_COLOR_MAP } from './test-utils';
 
 // Mock für die Phaser-Szene
 const mockScene = {
@@ -113,7 +114,7 @@ describe('Grid', () => {
 
   describe('Bubble Management', () => {
     test('addBubble sollte eine Bubble hinzufügen und ihre Position setzen', () => {
-      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE);
+      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
       const row = 2;
       const col = 3;
       const success = grid.addBubble(row, col, mockBubbleInstance);
@@ -125,13 +126,13 @@ describe('Grid', () => {
     });
 
     test('addBubble sollte false zurückgeben für ungültige Positionen', () => {
-      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
       expect(grid.addBubble(rows, cols, mockBubbleInstance)).toBe(false);
       expect(grid.addBubble(-1, 0, mockBubbleInstance)).toBe(false);
     });
 
     test('getBubble sollte eine Bubble von einer Position abrufen oder null', () => {
-      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.GREEN);
+      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
       grid.addBubble(1, 1, mockBubbleInstance);
       expect(grid.getBubble(1, 1)).toBe(mockBubbleInstance);
       expect(grid.getBubble(0, 0)).toBeNull();
@@ -139,7 +140,7 @@ describe('Grid', () => {
     });
 
     test('removeBubble sollte eine Bubble entfernen und zurückgeben', () => {
-      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, BUBBLE_COLORS.YELLOW);
+      const mockBubbleInstance = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.YELLOW);
       grid.addBubble(3, 3, mockBubbleInstance);
       const removedBubble = grid.removeBubble(3, 3);
 
@@ -203,12 +204,12 @@ describe('Grid', () => {
 
     test('findConnectedToTop erkennt Bubbles, die mit der obersten Reihe verbunden sind', () => {
       // Erstelle eine verbundene Kette von Bubbles
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-      grid.addBubble(2, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+      grid.addBubble(2, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
       
       // Füge eine isolierte Bubble hinzu
-      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
 
       const connected = grid.findConnectedToTop();
       
@@ -222,12 +223,12 @@ describe('Grid', () => {
 
     test('removeFloatingBubbles entfernt nicht verbundene Bubbles', () => {
       // Erstelle eine verbundene Kette
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
       
       // Erstelle zwei freischwebende Bubbles
-      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(3, 4, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+      grid.addBubble(3, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(3, 4, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
 
       const removedBubbles = grid.removeFloatingBubbles();
 
@@ -251,9 +252,9 @@ describe('Grid', () => {
 
     test('findConnectedToTop erkennt komplexe Verbindungen im Hexagonalgitter', () => {
       // Erstelle eine komplexere verbundene Struktur
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));  // Startpunkt
-      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE)); // Direkt darunter
-      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN)); // Diagonal
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));  // Startpunkt
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE)); // Direkt darunter
+      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN)); // Diagonal
       
       const connected = grid.findConnectedToTop();
       

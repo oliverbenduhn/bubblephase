@@ -1,3 +1,4 @@
+import { TEST_COLOR_MAP } from './test-utils';
 import { Grid } from './Grid';
 import { Bubble } from './Bubble';
 import { Collision } from './Collision';
@@ -38,14 +39,14 @@ describe('Bubble Attachment Mechanism', () => {
     // Fülle die erste Reihe mit Bubbles für Tests
     for (let col = 0; col < 5; col++) {
       const gridPos = grid.gridToPixel(0, col);
-      const bubble = new Bubble(mockScene, gridPos.x, gridPos.y, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+      const bubble = new Bubble(mockScene, gridPos.x, gridPos.y, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
       grid.addBubble(0, col, bubble);
     }
   });
 
   test('should find nearest empty cell for bubble above grid', () => {
     // Simuliere eine Bubble, die von unten kommt und in der Nähe der ersten Reihe ist
-    const shootingBubble = new Bubble(mockScene, 130, 30, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE);
+    const shootingBubble = new Bubble(mockScene, 130, 30, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
     
     const nearestCell = Collision.findNearestEmptyCell(grid, shootingBubble);
     
@@ -58,7 +59,7 @@ describe('Bubble Attachment Mechanism', () => {
   test('should find nearest empty cell for bubble hitting existing bubble', () => {
     // Simuliere eine Bubble, die eine existierende Bubble trifft
     const existingBubblePos = grid.gridToPixel(0, 2);
-    const shootingBubble = new Bubble(mockScene, existingBubblePos.x + 10, existingBubblePos.y + 30, BUBBLE_RADIUS, BUBBLE_COLORS.GREEN);
+    const shootingBubble = new Bubble(mockScene, existingBubblePos.x + 10, existingBubblePos.y + 30, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
     
     const nearestCell = Collision.findNearestEmptyCell(grid, shootingBubble);
     
@@ -70,7 +71,7 @@ describe('Bubble Attachment Mechanism', () => {
 
   test('should handle bubble attachment at top boundary', () => {
     // Simuliere eine Bubble, die die obere Grenze erreicht
-    const shootingBubble = new Bubble(mockScene, 200, 30, BUBBLE_RADIUS, BUBBLE_COLORS.YELLOW);
+    const shootingBubble = new Bubble(mockScene, 200, 30, BUBBLE_RADIUS, TEST_COLOR_MAP.YELLOW);
     
     const nearestCell = Collision.findNearestEmptyCell(grid, shootingBubble);
     
@@ -79,7 +80,7 @@ describe('Bubble Attachment Mechanism', () => {
   });
 
   test('should position bubble correctly in grid after attachment', () => {
-    const shootingBubble = new Bubble(mockScene, 200, 80, BUBBLE_RADIUS, BUBBLE_COLORS.PURPLE);
+    const shootingBubble = new Bubble(mockScene, 200, 80, BUBBLE_RADIUS, TEST_COLOR_MAP.PURPLE);
     
     const nearestCell = Collision.findNearestEmptyCell(grid, shootingBubble);
     expect(nearestCell).not.toBeNull();
@@ -104,13 +105,13 @@ describe('Bubble Attachment Mechanism', () => {
       for (let col = 0; col < grid.cols; col++) {
         if (!grid.getBubble(row, col)) {
           const gridPos = grid.gridToPixel(row, col);
-          const bubble = new Bubble(mockScene, gridPos.x, gridPos.y, BUBBLE_RADIUS, BUBBLE_COLORS.RED);
+          const bubble = new Bubble(mockScene, gridPos.x, gridPos.y, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
           grid.addBubble(row, col, bubble);
         }
       }
     }
     
-    const shootingBubble = new Bubble(mockScene, 200, 80, BUBBLE_RADIUS, BUBBLE_COLORS.BLUE);
+    const shootingBubble = new Bubble(mockScene, 200, 80, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
     
     const nearestCell = Collision.findNearestEmptyCell(grid, shootingBubble);
     

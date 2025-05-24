@@ -1,3 +1,4 @@
+import { TEST_COLOR_MAP } from './test-utils';
 import { Collision } from './Collision';
 import { Bubble, BUBBLE_COLORS } from './Bubble';
 import { BUBBLE_RADIUS } from './config';
@@ -182,7 +183,7 @@ describe('Collision', () => {
 
     test('findet keine Gruppe bei einzelner Bubble', () => {
       // Eine einzelne rote Bubble
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
       
       const { size, positions } = Collision.findColorGroup(grid, 0, 0, 3);
       
@@ -192,9 +193,9 @@ describe('Collision', () => {
 
     test('findet Gruppe von drei gleichfarbigen Bubbles', () => {
       // Drei rote Bubbles in einer horizontalen Reihe
-      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+      grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
       
       const { size, positions } = Collision.findColorGroup(grid, 0, 1, 3);
       
@@ -207,11 +208,11 @@ describe('Collision', () => {
 
     test('ignoriert unterschiedliche Farben', () => {
       // Eine rote Bubble umgeben von blauen
-      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-      grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-      grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+      grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+      grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+      grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+      grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
       
       const { size, positions } = Collision.findColorGroup(grid, 1, 1, 3);
       
@@ -221,11 +222,11 @@ describe('Collision', () => {
 
     test('findet komplexe Gruppen in verschiedenen Richtungen', () => {
       // Eine L-förmige Gruppe von grünen Bubbles
-      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-      grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-      grid.addBubble(1, 3, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-      grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-      grid.addBubble(3, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+      grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+      grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+      grid.addBubble(1, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+      grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+      grid.addBubble(3, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
       
       const { size, positions } = Collision.findColorGroup(grid, 1, 1, 3);
       

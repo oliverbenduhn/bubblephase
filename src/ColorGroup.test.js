@@ -1,3 +1,4 @@
+import { TEST_COLOR_MAP } from './test-utils';
 import { Grid } from './Grid';
 import { Bubble, BUBBLE_COLORS } from './Bubble';
 import { ColorGroup } from './ColorGroup';
@@ -29,7 +30,7 @@ describe('ColorGroup', () => {
         });
 
         test('findet eine einzelne Bubble', () => {
-            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             const connected = colorGroup.findConnectedBubbles(0, 0);
             
@@ -38,9 +39,9 @@ describe('ColorGroup', () => {
         });
 
         test('findet drei verbundene gleichfarbige Bubbles', () => {
-            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             const connected = colorGroup.findConnectedBubbles(0, 1);
             
@@ -51,9 +52,9 @@ describe('ColorGroup', () => {
         });
 
         test('ignoriert Bubbles anderer Farben', () => {
-            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
             
             const connected = colorGroup.findConnectedBubbles(1, 1);
             
@@ -68,7 +69,7 @@ describe('ColorGroup', () => {
             const centerCol = 2;
             
             // Zentrale Bubble
-            grid.addBubble(centerRow, centerCol, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(centerRow, centerCol, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             // Die 6 Nachbarn für eine gerade Reihe
             const neighborOffsets = [
@@ -82,7 +83,7 @@ describe('ColorGroup', () => {
                 grid.addBubble(
                     centerRow + offset.r, 
                     centerCol + offset.c, 
-                    new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED)
+                    new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED)
                 );
             });
             
@@ -105,11 +106,11 @@ describe('ColorGroup', () => {
 
         test('komplexe Gruppenerkennung mit Verzweigungen', () => {
             // Erstelle eine T-förmige Gruppe
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
             
             const connected = colorGroup.findConnectedBubbles(1, 1);
             
@@ -123,9 +124,9 @@ describe('ColorGroup', () => {
 
         test('Randfall: Gruppe am Spielfeldrand', () => {
             // Erstelle eine Gruppe am rechten Rand
-            grid.addBubble(0, 7, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-            grid.addBubble(1, 7, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-            grid.addBubble(2, 7, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+            grid.addBubble(0, 7, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+            grid.addBubble(1, 7, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+            grid.addBubble(2, 7, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
             
             const connected = colorGroup.findConnectedBubbles(1, 7);
             
@@ -138,8 +139,8 @@ describe('ColorGroup', () => {
 
     describe('findAndRemoveGroup', () => {
         test('entfernt keine Gruppe unter Mindestgröße', () => {
-            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             const removed = colorGroup.findAndRemoveGroup(0, 0, 3);
             
@@ -149,9 +150,9 @@ describe('ColorGroup', () => {
         });
 
         test('entfernt Gruppe mit Mindestgröße', () => {
-            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             const removed = colorGroup.findAndRemoveGroup(0, 1, 3);
             
@@ -162,9 +163,9 @@ describe('ColorGroup', () => {
         });
 
         test('entfernt L-förmige Gruppe', () => {
-            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
-            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
             
             const removed = colorGroup.findAndRemoveGroup(1, 1, 3);
             
@@ -176,13 +177,13 @@ describe('ColorGroup', () => {
 
         test('entfernt freischwebende Bubbles nach dem Entfernen einer Gruppe', () => {
             // Erstelle eine Gruppe von drei roten Bubbles, die andere Bubbles stützen
-            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
-            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             // Füge Bubbles hinzu, die von den roten Bubbles gestützt werden
-            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.GREEN));
+            grid.addBubble(1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
             
             const removed = colorGroup.findAndRemoveGroup(0, 1, 3);
             
@@ -205,7 +206,7 @@ describe('ColorGroup', () => {
                 [3, 1], [3, 3]
             ];
             positions.forEach(([row, col]) => {
-                grid.addBubble(row, col, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.PURPLE));
+                grid.addBubble(row, col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.PURPLE));
             });
             
             const removed = colorGroup.findAndRemoveGroup(2, 2, 3);
@@ -218,14 +219,14 @@ describe('ColorGroup', () => {
 
         test('behandelt freischwebende Blasen mit zyklischer Verbindung korrekt', () => {
             // Erstelle einen Ring aus Bubbles, der nach dem Entfernen einer Gruppe freischwebt
-            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED)); // Anker zur Decke
-            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED)); // Anker zur Decke
+            grid.addBubble(1, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
             
             // Blauer Ring
-            grid.addBubble(2, 0, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(2, 2, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
-            grid.addBubble(3, 1, new Bubble(mockScene, 0, 0, 10, BUBBLE_COLORS.BLUE));
+            grid.addBubble(2, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(2, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(2, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(3, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
             
             const removed = colorGroup.findAndRemoveGroup(0, 1, 2); // Entferne die roten Bubbles
             
