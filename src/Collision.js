@@ -25,27 +25,97 @@ export class Collision {
     const x = movingBubble.x;
     const y = movingBubble.y;
     
+    console.log(`🎯 Finding nearest cell for bubble at (${x}, ${y})`);
+    
+    // Bestimme die ungefähre Gitterposition
     const approxGridPos = grid.pixelToGrid(x, y);
-    if (process.env.NODE_ENV === 'development') {
-      console.log(`Bubble Position: (${x}, ${y}), Grid Position: (${approxGridPos.row}, ${approxGridPos.col})`);
+    console.log(`📍 Approximate grid position: (${approxGridPos.row}, ${approxGridPos.col})`);
+    
+    // Strategie 1: Prüfe zuerst, ob die ungefähre Position gültig und frei ist
+    if (grid.isValidGridPosition(approxGridPos.row, approxGridPos.col) && 
+        !grid.getBubble(approxGridPos.row, approxGridPos.col)) {
+      console.log(`✅ Found valid empty cell at approximate position: (${approxGridPos.row}, ${approxGridPos.col})`);
+      return approxGridPos;
     }
     
-    // Einfache Suche in einem Radius um die Position
-    for (let radius = 0; radius <= 2; radius++) {
-      for (let dr = -radius; dr <= radius; dr++) {
-        for (let dc = -radius; dc <= radius; dc++) {
-          const newRow = approxGridPos.row + dr;
-          const newCol = approxGridPos.col + dc;
+    // Strategie 2: Suche in der Nähe der ungefähren Position nach freien Zellen
+    const searchRadius = 2;
+    let bestCell = null;
+    let minDistance = Number.MAX_VALUE;
+    
+    for (let r = -searchRadius; r <= searchRadius; r++) {
+      for (let c = -searchRadius; c <= searchRadius; c++) {
+        const testRow = approxGridPos.row + r;
+        const testCol = approxGridPos.col + c;
+        
+        if (grid.isValidGridPosition(testRow, testCol) && !grid.getBubble(testRow, testCol)) {
+          const cellPos = grid.gridToPixel(testRow, testCol);
+          const dx = x - cellPos.x;
+          const dy = y - cellPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (grid.isValidGridPosition(newRow, newCol) && !grid.getBubble(newRow, newCol)) {
-            console.log(`Found valid position: (${newRow}, ${newCol}) with radius ${radius}`);
-            return { row: newRow, col: newCol };
+          if (distance < minDistance) {
+            minDistance = distance;
+            bestCell = { row: testRow, col: testCol };
           }
         }
       }
     }
     
-    console.log("No valid position found");
+    if (bestCell) {
+      console.log(`✅ Found nearby empty cell at: (${bestCell.row}, ${bestCell.col}) - distance: ${minDistance.toFixed(2)}`);
+      return bestCell;
+    }
+    
+    // Strategie 3: Suche nach Kollision mit vorhandenen Bubbles und finde Nachbarzelle
+    let closestBubble = null;
+    let minBubbleDistance = Number.MAX_VALUE;
+
+    grid.forEachBubble((gridBubble, row, col) => {
+      const dx = x - gridBubble.x;
+      const dy = y - gridBubble.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Kollisionsschwelle für Bubbles
+      if (distance < minBubbleDistance && distance <= BUBBLE_RADIUS * 2.5) {
+        minBubbleDistance = distance;
+        closestBubble = { bubble: gridBubble, row, col };
+      }
+    });
+    
+    if (!closestBubble) {
+      console.log("❌ No collision with existing bubbles detected");
+      return null;
+    }
+    
+    console.log(`🎯 Found collision with bubble at grid (${closestBubble.row}, ${closestBubble.col})`);
+    
+    // Finde die beste Nachbarzelle für die Kollisions-Bubble
+    // Finde die beste Nachbarzelle für die Kollisions-Bubble
+    const neighbors = grid.getNeighbors(closestBubble.row, closestBubble.col);
+    let bestNeighbor = null;
+    let minNeighborDistance = Number.MAX_VALUE;
+    
+    for (const neighbor of neighbors) {
+      if (!grid.getBubble(neighbor.row, neighbor.col)) {
+        const neighborPos = grid.gridToPixel(neighbor.row, neighbor.col);
+        const dx = x - neighborPos.x;
+        const dy = y - neighborPos.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        
+        if (distance < minNeighborDistance) {
+          minNeighborDistance = distance;
+          bestNeighbor = neighbor;
+        }
+      }
+    }
+    
+    if (bestNeighbor) {
+      console.log(`✅ Found neighbor cell at: (${bestNeighbor.row}, ${bestNeighbor.col}) - distance: ${minNeighborDistance.toFixed(2)}`);
+      return bestNeighbor;
+    }
+    
+    console.log("❌ No valid neighbor position found");
     return null;
   }
 

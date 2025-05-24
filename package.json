@@ -3,12 +3,12 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-"scripts": {
-  "dev": "vite --host",
-  "build": "vite build",
-  "preview": "vite preview",
-  "test": "jest"
-},
+  "scripts": {
+    "dev": "vite --host",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "jest"
+  },
   "dependencies": {
     "phaser": "^3.88.2",
     "react": "^18.2.0",

@@ -41,8 +41,10 @@ export class Bubble {
         // Setze die Position des Physics-Bodies direkt
         this.gameObject.body.x = x - this.radius;
         this.gameObject.body.y = y - this.radius;
-        // Stelle sicher, dass der Body mit dem GameObject synchronisiert ist
-        this.gameObject.body.updateFromGameObject();
+        // Synchronisiere den Body mit dem GameObject (falls die Methode existiert)
+        if (typeof this.gameObject.body.updateFromGameObject === 'function') {
+          this.gameObject.body.updateFromGameObject();
+        }
       }
     }
   }

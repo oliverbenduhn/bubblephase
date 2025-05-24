@@ -49,6 +49,25 @@ describe('Collision', () => {
         bubbles.forEach(b => {
           callback(b.bubble, b.row, b.col);
         });
+      }),
+      // Fehlende getNeighbors-Methode hinzufügen
+      getNeighbors: jest.fn((row, col) => {
+        // Implementiere eine einfache Nachbar-Logik für die Tests
+        const neighbors = [];
+        const directions = [
+          { r: -1, c: 0 }, { r: -1, c: 1 }, // oben
+          { r: 0, c: -1 }, { r: 0, c: 1 },  // links, rechts
+          { r: 1, c: 0 }, { r: 1, c: 1 }    // unten
+        ];
+        
+        for (const dir of directions) {
+          const newRow = row + dir.r;
+          const newCol = col + dir.c;
+          if (newRow >= 0 && newRow < 10 && newCol >= 0 && newCol < 10) {
+            neighbors.push({ row: newRow, col: newCol });
+          }
+        }
+        return neighbors;
       })
     };
 
