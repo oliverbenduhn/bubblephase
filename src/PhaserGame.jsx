@@ -241,8 +241,8 @@ class BootScene extends Phaser.Scene {
     prepareNextBubble() {
         // Sammle alle verfügbaren Farben aus dem aktuellen Grid
         const gridColors = new Set();
-        for (let row = 0; row < this.grid.getRows(); row++) {
-            for (let col = 0; col < this.grid.getCols(); col++) {
+        for (let row = 0; row < this.grid.rows; row++) {
+            for (let col = 0; col < this.grid.cols; col++) {
                 const bubble = this.grid.getBubble(row, col);
                 if (bubble) {
                     gridColors.add(bubble.color);
@@ -266,8 +266,17 @@ class BootScene extends Phaser.Scene {
 
     // Lade die vorbereitete Blase in die Kanone
     loadNextBubbleToCannon() {
+        console.log("Loading next bubble to cannon");
+        
+        // Stelle sicher, dass this.nextBubble existiert
         if (!this.nextBubble) {
+            console.log("Preparing next bubble because it doesn't exist");
             this.prepareNextBubble();
+        }
+
+        if (!this.nextBubble) {
+            console.error("Failed to create nextBubble!");
+            return;
         }
 
         const cannonX = this.cannon.x;
@@ -275,8 +284,16 @@ class BootScene extends Phaser.Scene {
         
         // Aktuelle Blase zum Schießen vorbereiten
         this.shootingBubble = this.nextBubble;
+        console.log("Set shootingBubble:", this.shootingBubble.color);
+        
         this.shootingBubble.setPosition(cannonX, cannonY);
-        this.shootingBubble.draw();
+        const gameObject = this.shootingBubble.draw();
+        
+        // Physik für die Bubble aktivieren aber bewegungslos machen bis zum Schuss
+        if (this.shootingBubble.gameObject && this.shootingBubble.gameObject.body) {
+            this.shootingBubble.gameObject.body.setVelocity(0, 0);
+            this.shootingBubble.gameObject.body.setImmovable(false); // Kann bewegt werden beim Schuss
+        }
         
         // Nächste Blase vorbereiten und anzeigen
         this.prepareNextBubble();
@@ -286,13 +303,23 @@ class BootScene extends Phaser.Scene {
         this.nextBubbleDisplay = new Bubble(this, this.sys.game.config.width - 80, this.sys.game.config.height - 80, BUBBLE_RADIUS, this.nextBubble.color);
         this.nextBubbleDisplay.draw();
         
+        // Physik für die Vorschau-Bubble deaktivieren
+        if (this.nextBubbleDisplay.gameObject && this.nextBubbleDisplay.gameObject.body) {
+            this.nextBubbleDisplay.gameObject.body.setVelocity(0, 0);
+            this.nextBubbleDisplay.gameObject.body.setImmovable(true);
+        }
+        
         this.canShoot = true;
     }
 
     // Methode zum Schießen der Blase
     shootBubble(angle) {
-        if (!this.canShoot || !this.shootingBubble || this.currentState !== this.gameStates.PLAYING) return;
+        if (!this.canShoot || !this.shootingBubble || this.currentState !== this.gameStates.PLAYING) {
+            console.log("Cannot shoot:", { canShoot: this.canShoot, hasShootingBubble: !!this.shootingBubble, state: this.currentState });
+            return;
+        }
         
+        console.log("Shooting bubble at angle:", angle);
         this.canShoot = false;
         this.aimLine.setVisible(false); // Verstecke die Ziellinie während des Schusses
         
@@ -302,6 +329,7 @@ class BootScene extends Phaser.Scene {
         
         // Physik für die schießende Blase aktivieren
         if (this.shootingBubble.gameObject && this.shootingBubble.gameObject.body) {
+            this.shootingBubble.gameObject.body.setImmovable(false);
             this.shootingBubble.gameObject.body.setVelocity(velocityX, velocityY);
         }
         
@@ -310,12 +338,21 @@ class BootScene extends Phaser.Scene {
     }
     
     setupCollisionDetection() {
-        if (!this.shootingBubble || !this.shootingBubble.gameObject) return;
+        if (!this.shootingBubble || !this.shootingBubble.gameObject) {
+            console.log("No shooting bubble for collision detection");
+            return;
+        }
+        
+        console.log("Setting up collision detection");
+        
+        // Entferne alle existierenden Kollisions-Detektoren für diese Bubble
+        this.physics.world.removeCollider(this.shootingBubble.gameObject);
         
         // Kollision mit Grid-Bubbles prüfen
         const gridBubbles = this.grid.getAllBubbleObjects();
-        for (const gridBubble of gridBubbles) {
-            this.physics.add.overlap(this.shootingBubble.gameObject, gridBubble, (shootingBubble, hitBubble) => {
+        if (gridBubbles.length > 0) {
+            const collider = this.physics.add.overlap(this.shootingBubble.gameObject, gridBubbles, (shootingBubble, hitBubble) => {
+                console.log("Grid collision detected");
                 this.handleBubbleCollision(shootingBubble, hitBubble);
             });
         }
@@ -326,10 +363,16 @@ class BootScene extends Phaser.Scene {
         
         // Event für Grenzenkollision
         this.shootingBubble.gameObject.body.onWorldBounds = true;
+        
+        // Entferne vorherige worldbounds Event-Listener um doppelte Aufrufe zu vermeiden
+        this.physics.world.off('worldbounds');
+        
         this.physics.world.on('worldbounds', (event, body) => {
             if (body === this.shootingBubble.gameObject.body) {
+                console.log("World boundary collision:", event);
                 // Wenn die Bubble die obere Grenze erreicht, befestigen wir sie
                 if (event.up) {
+                    console.log("Bubble hit top boundary");
                     this.attachBubbleToGrid();
                 }
                 // Wenn die Bubble seitlich die Grenze erreicht, einfach reflektieren
@@ -350,37 +393,69 @@ class BootScene extends Phaser.Scene {
     }
     
     handleBubbleCollision(shootingBubble, gridBubble) {
-        // Stoppe die Bewegung
-        shootingBubble.body.setVelocity(0, 0);
+        console.log("Bubble collision detected!");
         
-        // Finde die beste Grid-Position für die neue Blase
+        // Stoppe die Bewegung der schießenden Bubble
+        if (shootingBubble.body) {
+            shootingBubble.body.setVelocity(0, 0);
+            shootingBubble.body.setImmovable(true);
+        }
+        
+        // Befestige die Bubble am Grid
         this.attachBubbleToGrid();
     }
     
     attachBubbleToGrid() {
         if (!this.shootingBubble) return;
         
-        // Finde die nächste freie Position im Grid
-        const gridPos = this.grid.pixelToGrid(this.shootingBubble.x, this.shootingBubble.y);
+        console.log("Attaching bubble to grid - Current position:", this.shootingBubble.x, this.shootingBubble.y);
         
         // Nutze Collision.findNearestEmptyCell um die beste freie Position zu finden
         const nearestCell = Collision.findNearestEmptyCell(this.grid, this.shootingBubble);
         
         if (nearestCell) {
-            const pixelPos = this.grid.gridToPixel(nearestCell.row, nearestCell.col);
-            this.shootingBubble.setPosition(pixelPos.x, pixelPos.y);
-            this.grid.addBubble(nearestCell.row, nearestCell.col, this.shootingBubble);
+            console.log("Found nearest cell:", nearestCell);
+            
+            // Stoppe jegliche Bewegung der Bubble BEVOR wir sie positionieren
+            if (this.shootingBubble.gameObject && this.shootingBubble.gameObject.body) {
+                this.shootingBubble.gameObject.body.setVelocity(0, 0);
+                this.shootingBubble.gameObject.body.setImmovable(true);
+            }
+            
+            // Berechne die korrekte Pixel-Position für die Grid-Position
+            const targetPixelPos = this.grid.gridToPixel(nearestCell.row, nearestCell.col);
+            console.log("Target pixel position:", targetPixelPos);
+            
+            // Setze die Bubble-Position direkt
+            this.shootingBubble.setPosition(targetPixelPos.x, targetPixelPos.y);
+            console.log("Bubble positioned manually at:", this.shootingBubble.x, this.shootingBubble.y);
+            
+            // Füge die Bubble zum Grid hinzu (ohne zusätzliche Positionierung)
+            if (this.grid.isValidGridPosition(nearestCell.row, nearestCell.col)) {
+                this.grid.grid[nearestCell.row][nearestCell.col] = this.shootingBubble;
+                console.log("Bubble added to grid at:", nearestCell.row, nearestCell.col);
+            }
             
             // Prüfe auf Matches
             this.checkForMatches(nearestCell.row, nearestCell.col);
+            
+            // Bereite nächsten Schuss vor
+            this.shootingBubble = null;
+            if (this.currentState === this.gameStates.PLAYING) {
+                this.loadNextBubbleToCannon();
+            }
         } else {
             // Fallback: Entferne die Blase, wenn keine Position gefunden wurde
-            if (this.shootingBubble.gameObject) {
+            console.warn("Keine freie Position gefunden für Bubble");
+            if (this.shootingBubble && this.shootingBubble.gameObject) {
                 this.shootingBubble.destroy();
             }
+            // Bereite nächsten Schuss vor
+            this.shootingBubble = null;
+            if (this.currentState === this.gameStates.PLAYING) {
+                this.loadNextBubbleToCannon();
+            }
         }
-        
-        this.shootingBubble = null;
     }
     
     checkForMatches(row, col) {
@@ -409,12 +484,8 @@ class BootScene extends Phaser.Scene {
         }
         
         // Prüfe Game Over nach jedem Schuss
+        // Wichtig: Hier NICHT mehr die nächste Bubble laden, das erledigt jetzt attachBubbleToGrid
         this.checkGameOver();
-        
-        // Bereite nächsten Schuss vor (nur wenn Spiel noch läuft)
-        if (this.currentState === this.gameStates.PLAYING) {
-            this.loadNextBubbleToCannon();
-        }
     }
 
     // Zeige Score-Popup für visuelles Feedback
@@ -469,9 +540,9 @@ class BootScene extends Phaser.Scene {
         const gameOverLine = gameHeight - this.GAME_OVER_LINE_OFFSET;
 
         // Prüfe alle Bubbles im Grid
-        for (let row = 0; row < this.grid.getRows(); row++) {
-            for (let col = 0; col < this.grid.getCols(); col++) {
-                if (this.grid.hasBubble(row, col)) {
+        for (let row = 0; row < this.grid.rows; row++) {
+            for (let col = 0; col < this.grid.cols; col++) {
+                if (this.grid.getBubble(row, col)) {
                     const position = this.grid.gridToPixel(row, col);
                     if (position.y >= gameOverLine) {
                         this.handleGameOver();
