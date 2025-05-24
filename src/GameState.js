@@ -21,11 +21,25 @@ export default class GameState {
   }
 
   checkGameOver(bubbles, fieldHeight) {
+    // Input-Validierung
+    if (!Array.isArray(bubbles)) {
+      console.warn('GameState.checkGameOver: bubbles is not an array, defaulting to empty array');
+      bubbles = [];
+    }
+    
+    if (typeof fieldHeight !== 'number' || isNaN(fieldHeight) || fieldHeight <= 0) {
+      console.warn(`GameState.checkGameOver: fieldHeight is not a valid positive number (${fieldHeight}), returning false`);
+      return false;
+    }
+    
     // Prüfe, ob eine Bubble den unteren Rand des Spielfelds erreicht hat
     for (const bubble of bubbles) {
-      if (bubble.y + bubble.radius >= fieldHeight) {
-        this.setState(this.states.GAME_OVER);
-        return true;
+      // Zusätzliche Validierung für jede Bubble
+      if (bubble && typeof bubble.y === 'number' && typeof bubble.radius === 'number') {
+        if (bubble.y + bubble.radius >= fieldHeight) {
+          this.setState(this.states.GAME_OVER);
+          return true;
+        }
       }
     }
     return false;
