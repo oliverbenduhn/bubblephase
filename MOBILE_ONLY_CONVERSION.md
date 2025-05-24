@@ -44,6 +44,13 @@ Das Bubble Shooter Spiel wurde erfolgreich zu einer mobile-only Anwendung konver
 - Test für Touch-Interaktionen optimiert
 - Fokus auf mobile-spezifische Funktionalität
 
+**TrajectoryIntegration.test.js:**
+- Neuer Test für die Integration des Trajektorien-Systems für mobile Geräte
+- Verifiziert korrekte Anzeige der Schussbahn auf Touch-Geräten
+- Testet die Interaktion zwischen MobileOptimization und Spielszene
+- Simuliert mobile Events wie `mobileAim`, `mobileShoot` und `mobileMove`
+- Validiert das Verhalten der Trajektorien-Helfer bei verschiedenen Touch-Zuständen
+
 ## Ergebnis
 ✅ **Alle Desktop-spezifischen Features entfernt**
 ✅ **Optimiert für Touch-Eingabe**

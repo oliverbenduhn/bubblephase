@@ -501,67 +501,6 @@ export class MobileOptimization {
   }
 
   /**
-   * Richtet erweiterte Safe Area Unterstützung ein
-   */
-  updateSafeArea() {
-    // Prüfe auf CSS Environment Variables für Safe Areas
-    if (typeof window !== 'undefined' && window.CSS && window.CSS.supports) {
-      if (window.CSS.supports('padding: env(safe-area-inset-top)')) {
-        // Nutze CSS Environment Variables für moderne Browser
-        const style = getComputedStyle(document.documentElement);
-        this.config.safeAreaInsets = {
-          top: parseInt(style.getPropertyValue('--sat') || '0') || this.config.safeAreaInsets.top,
-          right: parseInt(style.getPropertyValue('--sar') || '0') || this.config.safeAreaInsets.right,
-          bottom: parseInt(style.getPropertyValue('--sab') || '0') || this.config.safeAreaInsets.bottom,
-          left: parseInt(style.getPropertyValue('--sal') || '0') || this.config.safeAreaInsets.left
-        };
-      }
-    }
-
-    // Fallback für Geräte ohne env() Support
-    if (!this.config.safeAreaInsets.top) {
-      this.detectNotchAndSafeAreas();
-    }
-  }
-
-  /**
-   * Erkennt Notch und Safe Areas auf älteren Geräten
-   */
-  detectNotchAndSafeAreas() {
-    const userAgent = navigator.userAgent;
-    
-    // iPhone X+ Serie Erkennung
-    if (/iPhone/.test(userAgent)) {
-      const screenHeight = window.screen.height;
-      const screenWidth = window.screen.width;
-      
-      // iPhone X+ Modelle haben typischerweise diese Auflösungen
-      if ((screenHeight === 812 && screenWidth === 375) ||  // iPhone X, XS
-          (screenHeight === 896 && screenWidth === 414) ||  // iPhone XR, XS Max
-          (screenHeight === 844 && screenWidth === 390) ||  // iPhone 12, 13
-          (screenHeight === 926 && screenWidth === 428)) {  // iPhone 12 Pro Max, 13 Pro Max
-        
-        this.config.safeAreaInsets = {
-          top: 44,
-          right: 0,
-          bottom: 34,
-          left: 0
-        };
-      }
-    }
-    
-    // Android mit Notch Erkennung (allgemeine Heuristik)
-    if (/Android/.test(userAgent) && window.screen.height > 1800) {
-      this.config.safeAreaInsets = {
-        top: 24,
-        right: 0,
-        bottom: 12,
-        left: 0
-      };
-    }
-  }
-
-  /**
    * Richtet Trajektorien-Hilfssystem ein
    */
   setupTrajectoryHelpers() {
