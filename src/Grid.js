@@ -69,9 +69,10 @@ export class Grid {
       bubbleInstance.setPosition(x, y); // Set the bubble's visual position
       
       // Stelle sicher, dass das Phaser-Grafikobjekt gezeichnet ist und Physik aktiviert ist
-      if (!bubbleInstance.gameObject) {
+      // In Tests nur zeichnen wenn nötig (Performance-Optimierung)
+      if (!bubbleInstance.gameObject && this.scene && typeof this.scene.add !== 'undefined') {
         bubbleInstance.draw();
-        console.log(`🧩 Re-creating gameObject for bubble at (${row}, ${col}) with colorId ${bubbleInstance.colorId}`);
+        // console.log entfernt für bessere Performance in Tests
       }
       
       return true;
@@ -112,6 +113,12 @@ export class Grid {
 
   // Checks if a grid position is valid
   isValidGridPosition(row, col) {
+    // Prüfe auf null/undefined und nicht-numerische Werte
+    if (row == null || col == null || 
+        typeof row !== 'number' || typeof col !== 'number' ||
+        !isFinite(row) || !isFinite(col)) {
+      return false;
+    }
     return row >= 0 && row < this.rows && col >= 0 && col < this.cols;
   }
 
@@ -335,5 +342,23 @@ export class Grid {
     }
 
     return nearestCell;
+  }
+
+  /**
+   * Zählt die Anzahl der Bubbles im Grid
+   * @returns {number} Anzahl der Bubbles
+   */
+  countBubbles() {
+    let count = 0;
+    this.forEachBubble(() => count++);
+    return count;
+  }
+
+  /**
+   * Überprüft, ob das Grid leer ist
+   * @returns {boolean} true wenn keine Bubbles vorhanden sind
+   */
+  isEmpty() {
+    return this.countBubbles() === 0;
   }
 }

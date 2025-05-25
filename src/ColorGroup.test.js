@@ -261,4 +261,222 @@ describe('ColorGroup', () => {
             expect(grid.getBubble(3, 1)).toBeNull();
         });
     });
+
+    describe('Komplexe Gruppenerkennung und hexagonale Nachbarschaft', () => {
+        test('sollte große zusammenhängende Gruppen korrekt erkennen', () => {
+            // Erstelle eine große L-förmige Gruppe
+            const positions = [
+              { row: 0, col: 0 }, { row: 0, col: 1 }, { row: 0, col: 2 },
+              { row: 1, col: 0 }, { row: 2, col: 0 }, { row: 3, col: 0 },
+              { row: 4, col: 0 }, { row: 4, col: 1 }, { row: 4, col: 2 }
+            ];
+    
+            positions.forEach(pos => {
+              grid.addBubble(pos.row, pos.col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            });
+    
+            const connected = colorGroup.findConnectedBubbles(2, 0);
+    
+            expect(connected).toHaveLength(9);
+            positions.forEach(pos => {
+              expect(connected).toContainEqual(pos);
+            });
+          });
+    
+          test('sollte getrennte Gruppen derselben Farbe nicht verbinden', () => {
+            // Erstelle zwei getrennte rote Gruppen
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            
+            grid.addBubble(0, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(0, 4, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            
+            // Trennende blaue Bubble
+            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+    
+            const connected1 = colorGroup.findConnectedBubbles(0, 0);
+            const connected2 = colorGroup.findConnectedBubbles(0, 3);
+    
+            expect(connected1).toHaveLength(2);
+            expect(connected2).toHaveLength(2);
+            expect(connected1).toContainEqual({ row: 0, col: 0 });
+            expect(connected1).toContainEqual({ row: 0, col: 1 });
+            expect(connected2).toContainEqual({ row: 0, col: 3 });
+            expect(connected2).toContainEqual({ row: 0, col: 4 });
+          });
+    
+          test('sollte hexagonale Nachbarschaft für ungerade Reihen korrekt handhaben', () => {
+            // Test spezifisch für ungerade Reihen, die in hexagonalen Gittern versetzt sind
+            const centerRow = 3; // Ungerade Reihe
+            const centerCol = 3;
+            
+            grid.addBubble(centerRow, centerCol, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+            
+            // Füge alle hexagonalen Nachbarn für eine ungerade Reihe hinzu
+            const oddRowNeighbors = [
+              { r: -1, c: 0 }, { r: -1, c: 1 },   // Oben
+              { r: 0, c: -1 }, { r: 0, c: 1 },    // Links, Rechts  
+              { r: 1, c: 0 }, { r: 1, c: 1 }      // Unten
+            ];
+            
+            oddRowNeighbors.forEach(offset => {
+              const row = centerRow + offset.r;
+              const col = centerCol + offset.c;
+              if (grid.isValidGridPosition(row, col)) {
+                grid.addBubble(row, col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.GREEN));
+              }
+            });
+    
+            const connected = colorGroup.findConnectedBubbles(centerRow, centerCol);
+            
+            // Sollte die zentrale Bubble plus alle gültigen Nachbarn finden
+            expect(connected.length).toBeGreaterThan(1);
+            expect(connected).toContainEqual({ row: centerRow, col: centerCol });
+          });
+    
+          test('sollte komplexe hexagonale Muster korrekt verfolgen', () => {
+            // Erstelle ein komplexes hexagonales Muster
+            const hexPattern = [
+              // Zentrum
+              { row: 3, col: 3 },
+              // Innerer Ring
+              { row: 2, col: 3 }, { row: 2, col: 4 },
+              { row: 3, col: 2 }, { row: 3, col: 4 },
+              { row: 4, col: 3 }, { row: 4, col: 4 },
+              // Äußerer Ring (teilweise)
+              { row: 1, col: 3 }, { row: 1, col: 4 },
+              { row: 5, col: 3 }, { row: 5, col: 4 }
+            ];
+    
+            hexPattern.forEach(pos => {
+              grid.addBubble(pos.row, pos.col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.PURPLE));
+            });
+    
+            const connected = colorGroup.findConnectedBubbles(3, 3);
+    
+            expect(connected).toHaveLength(hexPattern.length);
+            hexPattern.forEach(pos => {
+              expect(connected).toContainEqual(pos);
+            });
+          });
+    
+          test('sollte Gruppen mit nur 3 Bubbles als entfernbar erkennen', () => {
+            // Minimale entfernbare Gruppe
+            const smallGroup = [
+              { row: 1, col: 1 },
+              { row: 1, col: 2 },
+              { row: 1, col: 3 }
+            ];
+    
+            smallGroup.forEach(pos => {
+              grid.addBubble(pos.row, pos.col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.YELLOW));
+            });
+    
+            const connected = colorGroup.findConnectedBubbles(1, 2);
+            const removable = colorGroup.checkRemovableBubbles(connected);
+    
+            expect(connected).toHaveLength(3);
+            expect(removable).toBe(true);
+          });
+    
+          test('sollte Gruppen mit weniger als 3 Bubbles nicht als entfernbar erkennen', () => {
+            // Nicht entfernbare kleine Gruppe
+            grid.addBubble(2, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.ORANGE));
+            grid.addBubble(2, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.ORANGE));
+    
+            const connected = colorGroup.findConnectedBubbles(2, 2);
+            const removable = colorGroup.checkRemovableBubbles(connected);
+    
+            expect(connected).toHaveLength(2);
+            expect(removable).toBe(false);
+          });
+    
+          test('sollte Kettenreaktionen bei entfernten Gruppen erkennen', () => {
+            // Erstelle eine Situation für Kettenreaktionen
+            // Gelbe Gruppe oben
+            grid.addBubble(0, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.YELLOW));
+            grid.addBubble(0, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.YELLOW));
+            grid.addBubble(0, 4, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.YELLOW));
+            
+            // Rote Gruppe in der Mitte (hängt von gelber ab)
+            grid.addBubble(1, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(1, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            grid.addBubble(1, 4, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.RED));
+            
+            // Blaue Gruppe unten (hängt von roter ab)
+            grid.addBubble(2, 2, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(2, 3, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+            grid.addBubble(2, 4, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.BLUE));
+    
+            // Entferne die mittlere rote Gruppe
+            const redGroup = colorGroup.findConnectedBubbles(1, 2);
+            expect(redGroup).toHaveLength(3);
+            
+            // Simuliere Entfernung und prüfe auf hängende Bubbles
+            redGroup.forEach(pos => {
+              grid.removeBubble(pos.row, pos.col);
+            });
+            
+            const hangingBubbles = colorGroup.findHangingBubbles();
+            
+            // Die blauen Bubbles sollten jetzt hängen
+            expect(hangingBubbles.length).toBeGreaterThanOrEqual(3);
+            expect(hangingBubbles).toContainEqual({ row: 2, col: 2 });
+            expect(hangingBubbles).toContainEqual({ row: 2, col: 3 });
+            expect(hangingBubbles).toContainEqual({ row: 2, col: 4 });
+          });
+    
+          test('sollte Edge Cases bei Gruppensuche robust handhaben', () => {
+            // Test mit Grid-Grenzen
+            grid.addBubble(0, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.CYAN));
+            grid.addBubble(0, grid.cols - 1, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.CYAN));
+            grid.addBubble(grid.rows - 1, 0, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.CYAN));
+            
+            // Jede sollte als separate Gruppe erkannt werden
+            const corner1 = colorGroup.findConnectedBubbles(0, 0);
+            const corner2 = colorGroup.findConnectedBubbles(0, grid.cols - 1);
+            const corner3 = colorGroup.findConnectedBubbles(grid.rows - 1, 0);
+            
+            expect(corner1).toHaveLength(1);
+            expect(corner2).toHaveLength(1);
+            expect(corner3).toHaveLength(1);
+          });
+    
+          test('sollte sehr große Gruppen performant handhaben', () => {
+            const startTime = Date.now();
+            
+            // Erstelle eine sehr große Gruppe (fast das ganze Grid)
+            for (let row = 0; row < Math.min(grid.rows, 6); row++) {
+              for (let col = 0; col < Math.min(grid.cols, 6); col++) {
+                grid.addBubble(row, col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.MAGENTA));
+              }
+            }
+            
+            const connected = colorGroup.findConnectedBubbles(0, 0);
+            const endTime = Date.now();
+            
+            expect(connected.length).toBe(36); // 6x6 Grid
+            expect(endTime - startTime).toBeLessThan(100); // Sollte unter 100ms dauern
+          });
+    
+          test('sollte zirkuläre Verbindungen korrekt handhaben', () => {
+            // Erstelle einen Ring von Bubbles
+            const ringPositions = [
+              { row: 1, col: 1 }, { row: 1, col: 2 }, { row: 1, col: 3 },
+              { row: 2, col: 3 }, { row: 3, col: 3 }, { row: 3, col: 2 },
+              { row: 3, col: 1 }, { row: 2, col: 1 }
+            ];
+            
+            ringPositions.forEach(pos => {
+              grid.addBubble(pos.row, pos.col, new Bubble(mockScene, 0, 0, 10, TEST_COLOR_MAP.WHITE));
+            });
+            
+            const connected = colorGroup.findConnectedBubbles(1, 1);
+            
+            expect(connected).toHaveLength(8);
+            ringPositions.forEach(pos => {
+              expect(connected).toContainEqual(pos);
+            });
+          });
+    });
 });

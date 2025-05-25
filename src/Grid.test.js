@@ -263,4 +263,41 @@ describe('Grid', () => {
       expect(connected.has('1-1')).toBe(true);
     });
   });
+
+  describe('Empty Grid Edge Cases', () => {
+    test('behandelt leeres Spielfeld korrekt', () => {
+      // Verifiziere, dass das Grid leer ist
+      let bubbleCount = 0;
+      grid.forEachBubble((bubble) => {
+        if (bubble) bubbleCount++;
+      });
+      expect(bubbleCount).toBe(0);
+      
+      // Teste Operationen auf leerem Grid
+      expect(grid.getBubble(0, 0)).toBeNull();
+      expect(grid.getBubble(5, 5)).toBeNull();
+      
+      // isEmpty sollte true zurückgeben
+      expect(grid.isEmpty()).toBe(true);
+    });
+    
+    test('countBubbles gibt 0 für leeres Grid zurück', () => {
+      expect(grid.countBubbles()).toBe(0);
+    });
+    
+    test('findCellByBubble gibt null für nicht-existierende Bubble zurück', () => {
+      const mockBubble = new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      expect(grid.findCellByBubble(mockBubble)).toBeNull();
+    });
+    
+    test('removeFloatingBubbles gibt leeres Array für leeres Grid zurück', () => {
+      const removed = grid.removeFloatingBubbles();
+      expect(removed).toHaveLength(0);
+    });
+    
+    test('getAllBubbleObjects gibt leeres Array für leeres Grid zurück', () => {
+      const bubbleObjects = grid.getAllBubbleObjects();
+      expect(bubbleObjects).toHaveLength(0);
+    });
+  });
 });

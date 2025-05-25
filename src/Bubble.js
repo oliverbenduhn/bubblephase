@@ -23,7 +23,7 @@ export class Bubble {
     
     // Debug: Überprüfe die Farbwerte
     const colorValue = this.color;
-    console.log(`🎨 Drawing bubble with colorId: ${this.colorId}, colorValue: 0x${colorValue?.toString(16)}`);
+    // Performance: console.log reduziert für Tests
     
     // Fallback-Farbe falls undefined
     const safeColor = colorValue || 0xff0000; // Rot als Fallback

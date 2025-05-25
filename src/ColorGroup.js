@@ -12,13 +12,21 @@ export class ColorGroup {
    * @returns {Array<{row: number, col: number}>} - Eine Liste von Positionen der verbundenen Bubbles.
    */
   findConnectedBubbles(startRow, startCol) {
+    // Prüfe auf ungültige Eingaben
+    if (startRow == null || startCol == null || 
+        typeof startRow !== 'number' || typeof startCol !== 'number' ||
+        !isFinite(startRow) || !isFinite(startCol)) {
+      console.warn('[ColorGroup] findConnectedBubbles: Invalid start position provided');
+      return [];
+    }
+    
     const startBubble = this.grid.getBubble(startRow, startCol);
     if (!startBubble) {
       return [];
     }
 
     const colorIdToMatch = startBubble.colorId; // Verwende die logische Farb-ID statt der numerischen Farbe
-    console.log(`🔍 Finding connected bubbles with colorId: ${colorIdToMatch}`);
+    // console.log entfernt für bessere Performance in Tests
     
     const q = [{ row: startRow, col: startCol }];
     const visited = new Set([`${startRow}-${startCol}`]);
@@ -73,5 +81,63 @@ export class ColorGroup {
       removedBubbles.push(...floatingBubbles);
     }
     return removedBubbles;
+  }
+
+  /**
+   * Überprüft, ob eine Gruppe von Bubbles entfernbar ist (mindestens 3 Bubbles)
+   * @param {Array<{row: number, col: number}>} connectedGroup - Die zu überprüfende Gruppe
+   * @returns {boolean} - true wenn die Gruppe entfernbar ist
+   */
+  checkRemovableBubbles(connectedGroup) {
+    return connectedGroup && connectedGroup.length >= 3;
+  }
+
+  /**
+   * Findet alle hängenden (floating) Bubbles, die nicht mit dem oberen Rand verbunden sind
+   * @returns {Array<{row: number, col: number}>} - Liste der hängenden Bubble-Positionen
+   */
+  findHangingBubbles() {
+    const visited = new Set();
+    const connected = new Set();
+    
+    // Starte von der obersten Reihe und markiere alle verbundenen Bubbles
+    for (let col = 0; col < this.grid.cols; col++) {
+      if (this.grid.getBubble(0, col) && !visited.has(`0-${col}`)) {
+        this._markConnectedBubbles(0, col, visited, connected);
+      }
+    }
+    
+    // Finde alle Bubbles, die nicht markiert wurden (hängend)
+    const hangingBubbles = [];
+    this.grid.forEachBubble((bubble, row, col) => {
+      if (!connected.has(`${row}-${col}`)) {
+        hangingBubbles.push({ row, col });
+      }
+    });
+    
+    return hangingBubbles;
+  }
+
+  /**
+   * Private Hilfsmethode: Markiert alle mit einer Position verbundenen Bubbles
+   * @param {number} row - Startposition Reihe
+   * @param {number} col - Startposition Spalte
+   * @param {Set} visited - Set der besuchten Positionen
+   * @param {Set} connected - Set der verbundenen Positionen
+   * @private
+   */
+  _markConnectedBubbles(row, col, visited, connected) {
+    const key = `${row}-${col}`;
+    if (visited.has(key) || !this.grid.getBubble(row, col)) {
+      return;
+    }
+    
+    visited.add(key);
+    connected.add(key);
+    
+    const neighbors = this.grid.getNeighbors(row, col);
+    for (const neighbor of neighbors) {
+      this._markConnectedBubbles(neighbor.row, neighbor.col, visited, connected);
+    }
   }
 }

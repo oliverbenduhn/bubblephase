@@ -1,3 +1,4 @@
+import React, { useEffect, useRef } from 'react';
 import Phaser from 'phaser';
 import { Grid } from './Grid';
 import { Shooter } from './Shooter';
@@ -5,7 +6,9 @@ import { Bubble } from './Bubble';
 import { ColorGroup } from './ColorGroup';
 import { MobileOptimization } from './MobileOptimization';
 import { TouchMenu } from './TouchMenu'; // Import TouchMenu
-import { getCurrentTheme, switchColorTheme, COLOR_THEMES, getAvailableColorIds } from './config'; // Importiere Config-Funktionen
+import { Collision } from './Collision'; // Import Collision for findNearestEmptyCell
+import { getCurrentTheme, switchColorTheme, COLOR_THEMES, getAvailableColorIds, BUBBLE_RADIUS } from './config'; // Importiere Config-Funktionen
+import GameState from './GameState'; // Import GameState for checkGameOver
 import bubbleParticlePath from './assets/bubble-particle.svg'; // Importiere den Pfad zum Asset
 
 // Debug-Flag und Logging-Funktion
@@ -35,6 +38,9 @@ class BootScene extends Phaser.Scene {
         this.INITIAL_ROWS = 6; // Anzahl der Reihen, die zu Beginn mit Bubbles gefüllt werden
         this.INITIAL_COLOR_COUNT = 4; // Anzahl der verschiedenen Farben zu Beginn
         this.GAME_OVER_LINE_OFFSET = 150; // Abstand der Game Over Linie von unten
+        
+        // GameState für Game Over Check
+        this.gameState = new GameState();
         
         // Spielzustände
         this.gameStates = {
@@ -226,7 +232,7 @@ class BootScene extends Phaser.Scene {
                         pointer.x,
                         pointer.y
                     );
-
+    
                     const limitedAngle = this.clampAimAngle(angle);
                     this.shootBubble(limitedAngle);
                 }
@@ -239,6 +245,11 @@ class BootScene extends Phaser.Scene {
         this.input.on('pointercancel', () => {
             this.isAiming = false;
             this.aimLine.setVisible(false);
+        });
+
+        // Neu: Event Listener für orientationchange hinzufügen
+        this.game.events.on('orientationchange', (isPortrait) => {
+            this.adjustLayoutForOrientation(isPortrait);
         });
     }
 
@@ -797,6 +808,113 @@ class BootScene extends Phaser.Scene {
         });
     }
 
+    // Game Over Prüfung - verwendet GameState für die Logik
+    checkGameOver() {
+        if (this.currentState === this.gameStates.GAME_OVER) {
+            return true;
+        }
+
+        // Sammle alle Bubbles aus dem Grid
+        const allBubbles = [];
+        this.grid.forEachBubble((bubble, row, col) => {
+            if (bubble) {
+                allBubbles.push({
+                    y: bubble.y,
+                    radius: bubble.radius || this.BUBBLE_RADIUS,
+                    x: bubble.x,
+                    row: row,
+                    col: col
+                });
+            }
+        });
+
+        // Verwende GameState für Game Over Check
+        const fieldHeight = this.gameOverY;
+        const isGameOver = this.gameState.checkGameOver(allBubbles, fieldHeight);
+
+        if (isGameOver && this.currentState !== this.gameStates.GAME_OVER) {
+            this.handleGameOver();
+        }
+
+        return isGameOver;
+    }
+
+    // Behandelt den Game Over Zustand
+    handleGameOver() {
+        console.log('🚨 GAME OVER!');
+        this.currentState = this.gameStates.GAME_OVER;
+        this.canShoot = false;
+        this.aimLine.setVisible(false);
+
+        // Game Over Text anzeigen
+        if (!this.gameOverText) {
+            this.gameOverText = this.add.text(this.scale.width / 2, this.scale.height / 2 - 40, 'GAME OVER', {
+                fontSize: '32px',
+                fill: '#ff0000',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 4,
+                align: 'center'
+            }).setOrigin(0.5).setDepth(100);
+
+            // Final Score anzeigen
+            const finalScoreText = this.add.text(this.scale.width / 2, this.scale.height / 2 + 10, `Final Score: ${this.score}`, {
+                fontSize: '24px',
+                fill: '#ffffff',
+                fontStyle: 'bold',
+                stroke: '#000000',
+                strokeThickness: 2,
+                align: 'center'
+            }).setOrigin(0.5).setDepth(100);
+
+            // Restart Button
+            const buttonWidth = 150;
+            const buttonHeight = 50;
+            const buttonX = this.scale.width / 2 - buttonWidth / 2;
+            const buttonY = this.scale.height / 2 + 60;
+
+            const restartButton = this.add.graphics();
+            restartButton.fillStyle(0x4CAF50, 1);
+            restartButton.fillRoundedRect(buttonX, buttonY, buttonWidth, buttonHeight, 10);
+            restartButton.setDepth(100);
+
+            const restartText = this.add.text(this.scale.width / 2, buttonY + buttonHeight / 2, 'RESTART', {
+                fontSize: '18px',
+                fill: '#ffffff',
+                fontStyle: 'bold'
+            }).setOrigin(0.5).setDepth(101);
+
+            const restartZone = this.add.zone(buttonX + buttonWidth / 2, buttonY + buttonHeight / 2, buttonWidth, buttonHeight);
+            restartZone.setInteractive();
+            restartZone.on('pointerdown', () => {
+                this.restartGame();
+            });
+        }
+    }
+
+    // Restart das Spiel
+    restartGame() {
+        // Entferne Game Over UI
+        if (this.gameOverText) {
+            this.gameOverText.destroy();
+            this.gameOverText = null;
+        }
+
+        // Reset GameState
+        this.gameState.restartGame(() => {
+            this.initializeGrid();
+        });
+
+        // Reset Spielvariablen
+        this.score = 0;
+        this.scoreText.setText('Score: 0');
+        this.currentState = this.gameStates.PLAYING;
+        this.canShoot = true;
+
+        // Bereite neue Bubble vor
+        this.loadNextBubbleToCannon();
+    }
+
     // Simuliert die komplette Trajektorie mit Kollisionen und Wandabpraller
     simulateTrajectory(startX, startY, angle, maxBounces = 3, timeStep = 1/60, maxTime = 3) {
         const bubbleSpeed = this.shooter ? this.shooter.bubbleSpeed : 800;
@@ -988,8 +1106,41 @@ const config = {
             debug: false
         }
     },
-    scene: BootScene
+    scene: BootScene,
+    scale: {
+        mode: Phaser.Scale.RESIZE,
+        autoCenter: Phaser.Scale.CENTER_BOTH
+    }
 };
 
-// Starte das Spiel
-const game = new Phaser.Game(config);
+// React-Komponente für das Phaser-Spiel
+const PhaserGameComponent = () => {
+    const gameRef = useRef(null);
+    const phaserGameRef = useRef(null);
+
+    useEffect(() => {
+        // Erstelle das Spiel nur, wenn es noch nicht existiert
+        if (!phaserGameRef.current && gameRef.current) {
+            // Erstelle eine Kopie der Config mit dem Parent-Element
+            const gameConfig = {
+                ...config,
+                parent: gameRef.current
+            };
+            
+            phaserGameRef.current = new Phaser.Game(gameConfig);
+        }
+
+        return () => {
+            // Cleanup beim Unmount
+            if (phaserGameRef.current && !phaserGameRef.current.isDestroyed) {
+                phaserGameRef.current.destroy(true);
+                phaserGameRef.current = null;
+            }
+        };
+    }, []);
+
+    return <div ref={gameRef} style={{ width: '100%', height: '100%' }} />;
+};
+
+export default PhaserGameComponent;
+export { BootScene }; // Exportiere BootScene als benannten Export für Tests

@@ -9,6 +9,12 @@ export class Collision {
    * @returns {boolean} - true wenn Kollision erkannt wurde
    */
   static checkBubbleCollision(bubble1, bubble2, threshold = BUBBLE_RADIUS * 2) {
+    // Prüfe auf null oder undefined Eingaben
+    if (!bubble1 || !bubble2) {
+      console.warn('[checkBubbleCollision] Invalid input: bubble1 or bubble2 is null/undefined');
+      return false;
+    }
+
     const dx = bubble1.x - bubble2.x;
     const dy = bubble1.y - bubble2.y;
     const distance = Math.sqrt(dx * dx + dy * dy);
@@ -22,30 +28,213 @@ export class Collision {
    * @returns {Object|null} - {row, col} der nächsten freien Zelle oder null wenn keine passende gefunden wurde
    */
   static findNearestEmptyCell(grid, movingBubble) {
+    // Prüfe auf null oder undefined Eingaben
+    if (!grid || !movingBubble) {
+      console.warn('[findNearestEmptyCell] Invalid input: grid or movingBubble is null/undefined');
+      return null;
+    }
+    
+    // Prüfe ob movingBubble x und y Eigenschaften hat
+    if (typeof movingBubble.x !== 'number' || typeof movingBubble.y !== 'number') {
+      console.warn('[findNearestEmptyCell] Invalid movingBubble: missing x or y coordinates');
+      return null;
+    }
+    
     const x = movingBubble.x;
     const y = movingBubble.y;
     
-    console.log(`[findNearestEmptyCell] Input: bubble at (${x}, ${y})`);
-    
     const approxGridPos = grid.pixelToGrid(x, y);
-    console.log(`[findNearestEmptyCell] Approx grid position from grid.pixelToGrid: (${approxGridPos.row}, ${approxGridPos.col})`);
     
-    // Strategie 1: Prüfe zuerst, ob die ungefähre Position gültig und frei ist
+    // Prüfe ob es Bubbles im Grid gibt
+    let hasBubblesInGrid = false;
+    grid.forEachBubble(() => {
+      hasBubblesInGrid = true;
+    });
+    
+    // Strategie 1: Prüfe zuerst, ob die direkte Position gültig und frei ist
     const isApproxValid = grid.isValidGridPosition(approxGridPos.row, approxGridPos.col);
     const isApproxEmpty = isApproxValid && !grid.getBubble(approxGridPos.row, approxGridPos.col);
-    console.log(`[findNearestEmptyCell] Strategy 1: approxPos (${approxGridPos.row},${approxGridPos.col}) is valid: ${isApproxValid}, is empty: ${isApproxEmpty}`);
 
     if (isApproxValid && isApproxEmpty) {
-      console.log(`[findNearestEmptyCell] Strategy 1 SUCCESS: Returning approximate position: (${approxGridPos.row}, ${approxGridPos.col})`);
-      return approxGridPos;
+      if (!hasBubblesInGrid) {
+        // Kein Bubble im Grid - jede Position ist in Ordnung
+        return approxGridPos;
+      } else {
+        // Es gibt Bubbles - prüfe ob die Position an bestehende Bubbles angrenzt
+        const neighbors = grid.getNeighbors(approxGridPos.row, approxGridPos.col);
+        const hasAdjacentBubble = neighbors.some(neighbor => 
+          grid.isValidGridPosition(neighbor.row, neighbor.col) && 
+          grid.getBubble(neighbor.row, neighbor.col)
+        );
+        
+        if (hasAdjacentBubble) {
+          return approxGridPos;
+        }
+        
+        // Die direkte Position hat keine angrenzenden Bubbles
+        // Schaue nach sehr nahen Positionen mit angrenzenden Bubbles (nur im kleinen Radius)
+        // Aber nur, wenn die direkte Position sehr weit von der Input-Position entfernt ist
+        const pixelPos = grid.gridToPixel(approxGridPos.row, approxGridPos.col);
+        const distanceToInput = Math.sqrt(Math.pow(x - pixelPos.x, 2) + Math.pow(y - pixelPos.y, 2));
+        const reasonableDistanceThreshold = BUBBLE_RADIUS * 0.1; // Sehr streng für Cluster-Priorität (nur ~1.5 Pixel)
+        
+        if (distanceToInput <= reasonableDistanceThreshold) {
+          return approxGridPos;
+        }
+        
+        // Die direkte Position ist nicht nah genug, suche nach besseren angrenzenden Positionen
+        let bestNearbyAdjacentCell = null;
+        let minNearbyDistance = Number.MAX_VALUE;
+        const nearbyRadius = 2; // Nur sehr nahe Positionen prüfen
+        
+        for (let rOffset = -nearbyRadius; rOffset <= nearbyRadius; rOffset++) {
+          for (let cOffset = -nearbyRadius; cOffset <= nearbyRadius; cOffset++) {
+            if (rOffset === 0 && cOffset === 0) continue; // Die direkte Position haben wir schon geprüft
+            
+            const testRow = approxGridPos.row + rOffset;
+            const testCol = approxGridPos.col + cOffset;
+            
+            if (grid.isValidGridPosition(testRow, testCol) && !grid.getBubble(testRow, testCol)) {
+              const neighbors = grid.getNeighbors(testRow, testCol);
+              const hasAdjacentBubble = neighbors.some(neighbor => 
+                grid.isValidGridPosition(neighbor.row, neighbor.col) && 
+                grid.getBubble(neighbor.row, neighbor.col)
+              );
+              
+              if (hasAdjacentBubble) {
+                const cellPos = grid.gridToPixel(testRow, testCol);
+                const dx = x - cellPos.x;
+                const dy = y - cellPos.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                
+                if (distance < minNearbyDistance) {
+                  minNearbyDistance = distance;
+                  bestNearbyAdjacentCell = { row: testRow, col: testCol };
+                }
+              }
+            }
+          }
+        }
+        
+        // Wenn Bubbles im Grid vorhanden sind, priorisiere IMMER angrenzende Zellen
+        if (bestNearbyAdjacentCell) {
+          return bestNearbyAdjacentCell;
+        } else {
+          // Fallback zur direkten Position nur wenn keine angrenzenden Zellen gefunden wurden
+          return approxGridPos;
+        }
+      }
     }
-    console.log('[findNearestEmptyCell] Strategy 1 FAILED or cell occupied.');
 
-    // Strategie 2: Suche in der Nähe der ungefähren Position nach freien Zellen
-    const searchRadius = 2;
+    // Strategie 2: Wenn die direkte Position besetzt ist, suche nach freien Nachbarzellen
+    if (isApproxValid && !isApproxEmpty) {
+      const neighbors = grid.getNeighbors(approxGridPos.row, approxGridPos.col);
+      let bestNeighborCell = null;
+      let minNeighborDistance = Number.MAX_VALUE;
+
+      for (const neighbor of neighbors) {
+        if (grid.isValidGridPosition(neighbor.row, neighbor.col) && !grid.getBubble(neighbor.row, neighbor.col)) {
+          const neighborPos = grid.gridToPixel(neighbor.row, neighbor.col);
+          const dx = x - neighborPos.x;
+          const dy = y - neighborPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < minNeighborDistance) {
+            minNeighborDistance = distance;
+            bestNeighborCell = neighbor;
+          }
+        }
+      }
+      
+      if (bestNeighborCell) {
+        return bestNeighborCell;
+      }
+    }
+
+    // Strategie 3: Erweiterte Suche nach Kollision mit vorhandenen Bubbles
+    let closestBubbleInfo = null;
+    let minBubbleDistance = Number.MAX_VALUE;
+
+    grid.forEachBubble((gridBubble, row, col) => {
+      const cellCenter = grid.gridToPixel(row, col);
+      const dx = x - cellCenter.x;
+      const dy = y - cellCenter.y;
+      const distance = Math.sqrt(dx * dx + dy * dy);
+      
+      // Priorisiere Bubbles, die näher zur bewegten Bubble sind
+      if (distance < minBubbleDistance && distance <= BUBBLE_RADIUS * 4) {
+        minBubbleDistance = distance;
+        closestBubbleInfo = { row, col };
+      }
+    });
+    
+    if (closestBubbleInfo) {
+      const neighbors = grid.getNeighbors(closestBubbleInfo.row, closestBubbleInfo.col);
+      let bestNeighborCell = null;
+      let minNeighborDistance = Number.MAX_VALUE;
+
+      for (const neighbor of neighbors) {
+        if (grid.isValidGridPosition(neighbor.row, neighbor.col) && !grid.getBubble(neighbor.row, neighbor.col)) {
+          const neighborPos = grid.gridToPixel(neighbor.row, neighbor.col);
+          const dx = x - neighborPos.x;
+          const dy = y - neighborPos.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance < minNeighborDistance) {
+            minNeighborDistance = distance;
+            bestNeighborCell = neighbor;
+          }
+        }
+      }
+      
+      if (bestNeighborCell) {
+        return bestNeighborCell;
+      }
+    }
+
+    // Strategie 4: Wenn es Bubbles gibt, bevorzuge Zellen die an Bubbles angrenzen (erweiterte Suche)
+    if (hasBubblesInGrid) {
+      let bestAdjacentCell = null;
+      let minAdjacentDistance = Number.MAX_VALUE;
+      
+      const searchRadius = 4; // Erweiterte Suche
+      for (let rOffset = -searchRadius; rOffset <= searchRadius; rOffset++) {
+        for (let cOffset = -searchRadius; cOffset <= searchRadius; cOffset++) {
+          const testRow = approxGridPos.row + rOffset;
+          const testCol = approxGridPos.col + cOffset;
+          
+          if (grid.isValidGridPosition(testRow, testCol) && !grid.getBubble(testRow, testCol)) {
+            // Prüfe ob diese Zelle an bestehende Bubbles angrenzt
+            const neighbors = grid.getNeighbors(testRow, testCol);
+            const hasAdjacentBubble = neighbors.some(neighbor => 
+              grid.isValidGridPosition(neighbor.row, neighbor.col) && 
+              grid.getBubble(neighbor.row, neighbor.col)
+            );
+            
+            if (hasAdjacentBubble) {
+              const cellPos = grid.gridToPixel(testRow, testCol);
+              const dx = x - cellPos.x;
+              const dy = y - cellPos.y;
+              const distance = Math.sqrt(dx * dx + dy * dy);
+              
+              if (distance < minAdjacentDistance) {
+                minAdjacentDistance = distance;
+                bestAdjacentCell = { row: testRow, col: testCol };
+              }
+            }
+          }
+        }
+      }
+      
+      if (bestAdjacentCell) {
+        return bestAdjacentCell;
+      }
+    }
+
+    // Strategie 5: Fallback - breitere Suche nach freien Zellen
+    const searchRadius = 3;
     let bestCell = null;
     let minDistance = Number.MAX_VALUE;
-    console.log(`[findNearestEmptyCell] Strategy 2: Searching in radius ${searchRadius} around (${approxGridPos.row}, ${approxGridPos.col})`);
 
     for (let rOffset = -searchRadius; rOffset <= searchRadius; rOffset++) {
       for (let cOffset = -searchRadius; cOffset <= searchRadius; cOffset++) {
@@ -57,75 +246,16 @@ export class Collision {
           const dx = x - cellPos.x;
           const dy = y - cellPos.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
-          // console.log(`[findNearestEmptyCell] Strategy 2: Testing empty cell (${testRow},${testCol}). Dist: ${distance.toFixed(2)}`);
+          
           if (distance < minDistance) {
             minDistance = distance;
             bestCell = { row: testRow, col: testCol };
-            // console.log(`[findNearestEmptyCell] Strategy 2: New bestCell: (${bestCell.row},${bestCell.col}), dist: ${minDistance.toFixed(2)}`);
           }
         }
       }
     }
     
-    if (bestCell) {
-      console.log(`[findNearestEmptyCell] Strategy 2 SUCCESS: Returning bestCell: (${bestCell.row}, ${bestCell.col}) - distance: ${minDistance.toFixed(2)}`);
-      return bestCell;
-    }
-    console.log('[findNearestEmptyCell] Strategy 2 FAILED to find any empty cell in radius.');
-
-    // Strategie 3: Suche nach Kollision mit vorhandenen Bubbles und finde Nachbarzelle
-    console.log('[findNearestEmptyCell] Strategy 3: Looking for closest bubble to snap to.');
-    let closestBubbleInfo = null;
-    let minBubbleDistance = Number.MAX_VALUE;
-
-    grid.forEachBubble((gridBubble, row, col) => {
-      // Use the center of the grid cell for accurate distance, not potentially stale bubble object coordinates
-      const cellCenter = grid.gridToPixel(row, col);
-      const dx = x - cellCenter.x;
-      const dy = y - cellCenter.y;
-      const distance = Math.sqrt(dx * dx + dy * dy);
-      
-      // Check if this bubble is close enough to be considered for snapping
-      if (distance < minBubbleDistance && distance <= BUBBLE_RADIUS * 2.5) { // Consider only bubbles within a certain range
-        minBubbleDistance = distance;
-        closestBubbleInfo = { row, col };
-      }
-    });
-    
-    if (!closestBubbleInfo) {
-      console.log("[findNearestEmptyCell] Strategy 3 FAILED: No nearby bubble found to snap against.");
-      return null;
-    }
-    
-    console.log(`[findNearestEmptyCell] Strategy 3: Found closest existing bubble at grid (${closestBubbleInfo.row}, ${closestBubbleInfo.col}) to snap against.`);
-    
-    const neighbors = grid.getNeighbors(closestBubbleInfo.row, closestBubbleInfo.col);
-    let bestNeighborCell = null;
-    let minNeighborDistance = Number.MAX_VALUE;
-    console.log(`[findNearestEmptyCell] Strategy 3: Checking ${neighbors.length} neighbors of (${closestBubbleInfo.row},${closestBubbleInfo.col})`);
-
-    for (const neighbor of neighbors) {
-      if (!grid.getBubble(neighbor.row, neighbor.col)) {
-        const neighborPos = grid.gridToPixel(neighbor.row, neighbor.col);
-        const dx = x - neighborPos.x;
-        const dy = y - neighborPos.y;
-        const distance = Math.sqrt(dx * dx + dy * dy);
-        // console.log(`[findNearestEmptyCell] Strategy 3: Testing empty neighbor (${neighbor.row},${neighbor.col}). Dist to movingBubble: ${distance.toFixed(2)}`);
-        if (distance < minNeighborDistance) {
-          minNeighborDistance = distance;
-          bestNeighborCell = neighbor;
-          // console.log(`[findNearestEmptyCell] Strategy 3: New best neighbor: (${bestNeighborCell.row},${bestNeighborCell.col}), dist: ${minNeighborDistance.toFixed(2)}`);
-        }
-      }
-    }
-    
-    if (bestNeighborCell) {
-      console.log(`[findNearestEmptyCell] Strategy 3 SUCCESS: Returning best neighbor: (${bestNeighborCell.row}, ${bestNeighborCell.col}) - distance to movingBubble: ${minNeighborDistance.toFixed(2)}`);
-      return bestNeighborCell;
-    }
-    
-    console.log("[findNearestEmptyCell] Strategy 3 FAILED: No valid empty neighbor found.");
-    return null;
+    return bestCell;
   }
 
   /**

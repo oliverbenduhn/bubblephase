@@ -6,6 +6,7 @@ const mockScene = {
   add: {
     circle: jest.fn().mockImplementation(() => ({
       setStrokeStyle: jest.fn(),
+      setFillStyle: jest.fn(),
       destroy: jest.fn(),
       setPosition: jest.fn(),
       body: {
@@ -84,5 +85,84 @@ describe('Bubble', () => {
 
     expect(mockDestroy).toHaveBeenCalled();
     expect(bubble.gameObject).toBeNull();
+  });
+
+  test('sollte den color getter den korrekten Farbwert zurückgeben', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+    
+    // Der Farbwert sollte von getColorValue kommen
+    expect(typeof bubble.color).toBe('number');
+    expect(bubble.colorId).toBe(TEST_COLOR_MAP.RED);
+  });
+
+  test('sollte updateVisualColor die Farbe des gameObjects aktualisieren', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
+    bubble.draw(); // gameObject muss existieren
+    
+    // Mock setFillStyle Methode
+    bubble.gameObject.setFillStyle = jest.fn();
+    
+    bubble.updateVisualColor();
+    
+    expect(bubble.gameObject.setFillStyle).toHaveBeenCalledWith(bubble.color);
+  });
+
+  test('sollte updateVisualColor nichts tun wenn kein gameObject existiert', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
+    // Kein draw() aufgerufen, also kein gameObject
+    
+    // Sollte keine Fehler werfen
+    expect(() => bubble.updateVisualColor()).not.toThrow();
+  });
+
+  test('sollte draw() bestehende gameObjects vor dem Neuzeichnen zerstören', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.PURPLE);
+    bubble.draw(); // Erstes gameObject erstellen
+    
+    const firstGameObject = bubble.gameObject;
+    const mockDestroy = firstGameObject.destroy;
+    
+    bubble.draw(); // Zweites Mal zeichnen - sollte erstes zerstören
+    
+    expect(mockDestroy).toHaveBeenCalled();
+    expect(bubble.gameObject).not.toBe(firstGameObject); // Neues Objekt erstellt
+  });
+
+  test('sollte setPosition nichts tun wenn kein gameObject existiert', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.ORANGE);
+    // Kein draw() aufgerufen, also kein gameObject
+    
+    const newX = 100;
+    const newY = 150;
+    
+    // Sollte keine Fehler werfen
+    expect(() => bubble.setPosition(newX, newY)).not.toThrow();
+    
+    // Position sollte trotzdem aktualisiert werden
+    expect(bubble.x).toBe(newX);
+    expect(bubble.y).toBe(newY);
+  });
+
+  test('sollte destroy() nichts tun wenn kein gameObject existiert', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.PURPLE);
+    // Kein draw() aufgerufen, also kein gameObject
+    
+    // Sollte keine Fehler werfen
+    expect(() => bubble.destroy()).not.toThrow();
+    expect(bubble.gameObject).toBeNull();
+  });
+
+  test('sollte updateFromGameObject aufrufen wenn die Methode verfügbar ist', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
+    bubble.draw(); // gameObject muss existieren
+    
+    // Mock updateFromGameObject Methode
+    bubble.gameObject.body.updateFromGameObject = jest.fn();
+    
+    const newX = 200;
+    const newY = 250;
+    bubble.setPosition(newX, newY);
+    
+    expect(bubble.gameObject.body.updateFromGameObject).toHaveBeenCalled();
   });
 });

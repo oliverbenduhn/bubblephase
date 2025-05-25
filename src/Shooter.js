@@ -93,4 +93,13 @@ export class Shooter {
     const result = bubble.y - BUBBLE_RADIUS < topY;
     return result;
   }
+
+  /**
+   * Update-Methode für den Shooter (wird vom Spiel-Loop aufgerufen)
+   * @param {number} delta - Zeit seit dem letzten Frame in Millisekunden
+   */
+  update(delta) {
+    // Placeholder für zukünftige Shooter-Updates
+    // Zum Beispiel: Animation der Kanone, automatisches Zielen, etc.
+  }
 }
