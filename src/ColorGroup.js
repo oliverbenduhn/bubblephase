@@ -17,7 +17,9 @@ export class ColorGroup {
       return [];
     }
 
-    const colorToMatch = startBubble.color;
+    const colorIdToMatch = startBubble.colorId; // Verwende die logische Farb-ID statt der numerischen Farbe
+    console.log(`🔍 Finding connected bubbles with colorId: ${colorIdToMatch}`);
+    
     const q = [{ row: startRow, col: startCol }];
     const visited = new Set([`${startRow}-${startCol}`]);
     const connectedGroup = [{ row: startRow, col: startCol }];
@@ -40,7 +42,7 @@ export class ColorGroup {
         if (!visited.has(neighborKey)) {
           visited.add(neighborKey);
           const bubble = this.grid.getBubble(neighbor.row, neighbor.col);
-          if (bubble && bubble.color === colorToMatch) {
+          if (bubble && bubble.colorId === colorIdToMatch) { // Vergleiche colorId statt color
             connectedGroup.push({ row: neighbor.row, col: neighbor.col });
             q.push(neighbor);
           }

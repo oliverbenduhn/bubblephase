@@ -508,7 +508,14 @@ class BootScene extends Phaser.Scene {
             this.collider.destroy();
             this.collider = null;
         }
-        // Removed: this.physics.world.removeCollider(this.shootingBubble.gameObject); // This might be causing issues
+        
+        // Aktualisiere alle Bubbles im Grid, um sicherzustellen, dass sie ein gameObject haben
+        this.grid.forEachBubble((bubble, row, col) => {
+            if (!bubble.gameObject) {
+                bubble.draw();
+                console.log(`🎯 Recreated missing gameObject for bubble at (${row}, ${col}) with colorId ${bubble.colorId}`);
+            }
+        });
         
         // Kollision mit Grid-Bubbles prüfen
         const gridBubbles = this.grid.getAllBubbleObjects();
@@ -556,7 +563,7 @@ class BootScene extends Phaser.Scene {
         });
     }
     
-    handleBubbleCollision(shootingBubble, gridBubble) {
+    handleBubbleCollision(shootingBubble, gridBubbleGameObject) {
         try {
             console.log("DEBUG: isAttaching at very start of handleBubbleCollision:", this.isAttaching); // Moved this line
             // Verhindere mehrfache Aufrufe der Kollisionsbehandlung
@@ -568,14 +575,13 @@ class BootScene extends Phaser.Scene {
             this.isAttaching = true;
             console.log("🟡 Bubble collision detected! Stopping movement and attaching to grid");
             console.log("🎯 Collision at bubble position:", shootingBubble.x, shootingBubble.y);
-            console.log("🎯 Hit grid bubble at:", gridBubble.x, gridBubble.y);
+            console.log("🎯 Hit grid bubble game object at:", gridBubbleGameObject.x, gridBubbleGameObject.y);
 
             // Entferne SOFORT alle Kollisionsdetektoren um weitere Kollisionen zu verhindern
             if (this.collider) {
                 this.collider.destroy();
                 this.collider = null;
             }
-            // Removed: this.physics.world.removeCollider(this.shootingBubble.gameObject); // This might be causing issues
 
             // Stoppe die Bewegung der schießenden Bubble
             if (shootingBubble.gameObject && shootingBubble.gameObject.body) {
@@ -588,8 +594,22 @@ class BootScene extends Phaser.Scene {
             // Speichere die Kollisionsposition für bessere Platzierung
             this.collisionPosition = { x: shootingBubble.gameObject.x, y: shootingBubble.gameObject.y };
             
+            // Finde die Bubble-Instanz, die zu diesem gameObject gehört
+            let foundGridBubble = null;
+            this.grid.forEachBubble((bubble) => {
+                if (bubble && bubble.gameObject === gridBubbleGameObject) {
+                    foundGridBubble = bubble;
+                }
+            });
+            
+            if (!foundGridBubble) {
+                console.error("❌ Could not find matching bubble instance for collision");
+                this.isAttaching = false;
+                return;
+            }
+            
             // Berechne benachbarte freie Zelle um den getroffenen Grid-Bubble
-            const hitGrid = this.grid.findCellByBubble(gridBubble);
+            const hitGrid = this.grid.findCellByBubble(foundGridBubble);
             if (hitGrid) {
                 const neighbors = this.grid.getNeighbors(hitGrid.row, hitGrid.col);
                 const emptyNeighbors = neighbors.filter(n => !this.grid.getBubble(n.row, n.col));

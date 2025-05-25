@@ -6,11 +6,30 @@ import { ColorGroup } from './ColorGroup';
 // Mock für Phaser.Scene
 const mockScene = {
     add: {
-        circle: () => ({
-            setStrokeStyle: () => ({}),
-            setPosition: () => {},
-            destroy: () => {}
-        })
+        circle: jest.fn().mockImplementation(() => ({
+            setStrokeStyle: jest.fn(),
+            setPosition: jest.fn(),
+            destroy: jest.fn(),
+            body: {
+              setCircle: jest.fn(),
+              setVelocity: jest.fn(),
+              reset: jest.fn(),
+              setMaxVelocity: jest.fn().mockReturnThis(),
+              setDrag: jest.fn().mockReturnThis(),
+              setFrictionX: jest.fn(),
+              setFrictionY: jest.fn(),
+              setCollideWorldBounds: jest.fn(),
+              setBounce: jest.fn(),
+              setImmovable: jest.fn(),
+              maxVelocity: { x: 600, y: 600 },
+              drag: { x: 0.98, y: 0.98 }
+            }
+        })),
+    },
+    physics: {
+        add: {
+            existing: jest.fn()
+        }
     }
 };
 

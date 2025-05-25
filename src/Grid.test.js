@@ -12,12 +12,12 @@ const mockScene = {
 // Mock für die Bubble-Klasse
 jest.mock('./Bubble', () => ({
   ...jest.requireActual('./Bubble'), // Behalte die echten Konstanten wie BUBBLE_COLORS
-  Bubble: jest.fn().mockImplementation((scene, x, y, radius, color) => ({
+  Bubble: jest.fn().mockImplementation((scene, x, y, radius, colorId) => ({
     scene,
     x,
     y,
     radius,
-    color,
+    colorId,
     gameObject: null,
     draw: jest.fn(),
     setPosition: jest.fn(function(newX, newY) {

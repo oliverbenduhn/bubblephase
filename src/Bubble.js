@@ -32,15 +32,30 @@ export class Bubble {
     this.gameObject = this.scene.add.circle(this.x, this.y, this.radius, safeColor);
     // Aktiviere die Physik für die Blase
     this.scene.physics.add.existing(this.gameObject, false);
-    // Setze die Kollisionsbox
+    
+    // Setze die Kollisionsbox und Physik-Parameter korrekt
     this.gameObject.body.setCircle(this.radius);
-    // Verbesserte Physics Body Konfiguration für optimales Verhalten
+    this.gameObject.body.setCollideWorldBounds(false); // Wir handhaben das manuell
+    this.gameObject.body.setBounce(0, 0); // Kein Abprallen standardmäßig
+    this.gameObject.body.setFrictionX(0); // Keine Reibung in X-Richtung
+    this.gameObject.body.setFrictionY(0); // Keine Reibung in Y-Richtung
     this.gameObject.body.setMaxVelocity(600, 600);  // Geschwindigkeitsbegrenzung für Stabilität
-    this.gameObject.body.setDrag(0.98);             // Minimaler Luftwiderstand für natürlicheres Verhalten
+    this.gameObject.body.setDrag(0.98);  // Minimaler Luftwiderstand
+    
+    // Speichere eine Referenz auf diese Bubble im GameObject für einfachere Rückverfolgung
+    this.gameObject.parentBubble = this;
+    
     // Optional: Einen Rand hinzufügen, um die Bubbles besser zu unterscheiden
     this.gameObject.setStrokeStyle(1, 0x000000, 0.8);
+    
     // Setze die Geschwindigkeit auf 0 um zu verhindern, dass die Blase fällt
     this.gameObject.body.setVelocity(0, 0);
+    
+    // Für statische Bubbles, setze sie als unbeweglich
+    if (this !== this.scene.shootingBubble) {
+      this.gameObject.body.setImmovable(true);
+    }
+    
     // Speichere eine Referenz auf die Bubble-Instanz im GameObject
     return this.gameObject;
   }

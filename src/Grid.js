@@ -67,6 +67,13 @@ export class Grid {
       this.grid[row][col] = bubbleInstance;
       const { x, y } = this.gridToPixel(row, col);
       bubbleInstance.setPosition(x, y); // Set the bubble's visual position
+      
+      // Stelle sicher, dass das Phaser-Grafikobjekt gezeichnet ist und Physik aktiviert ist
+      if (!bubbleInstance.gameObject) {
+        bubbleInstance.draw();
+        console.log(`🧩 Re-creating gameObject for bubble at (${row}, ${col}) with colorId ${bubbleInstance.colorId}`);
+      }
+      
       return true;
     }
     return false;
