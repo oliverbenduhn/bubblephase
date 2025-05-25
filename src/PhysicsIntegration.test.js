@@ -338,7 +338,7 @@ describe('Physics Integration Tests', () => {
       
       for (let row = 0; row < grid.rows; row++) {
         for (let col = 0; col < grid.cols; col++) {
-          const color = Object.values(TEST_COLOR_MAP)[Math.floor(Math.random() * Object.values(TEST_COLOR_MAP).length)];
+          const color = Object.values(BUBBLE_COLORS)[Math.floor(Math.random() * Object.values(BUBBLE_COLORS).length)];
           grid.addBubble(row, col, new Bubble(mockScene, 0, 0, BUBBLE_RADIUS, color));
         }
       }

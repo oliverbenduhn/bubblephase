@@ -13,11 +13,5 @@ export const TEST_COLOR_MAP = {
 
 // Helper function für Tests
 export const getTestColorId = (oldColorName) => {
-    if (oldColorName in TEST_COLOR_MAP) {
-        return TEST_COLOR_MAP[oldColorName];
-    } else {
-        // Optional: Standardwert zurückgeben oder Fehler werfen
-        // return DEFAULT_COLOR_ID;
-        throw new Error(`Ungültiger Farbname: ${oldColorName}`);
-    }
+    return TEST_COLOR_MAP[oldColorName];
 };
