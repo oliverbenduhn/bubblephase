@@ -1,4 +1,4 @@
-import { TEST_COLOR_MAP } from './test-utils';
+
 import { Collision } from './Collision';
 import { Bubble, BUBBLE_COLORS } from './Bubble';
 import { BUBBLE_RADIUS } from './config';

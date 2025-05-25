@@ -47,4 +47,42 @@ describe('Bubble', () => {
     expect(bubble.radius).toBe(radius);
     expect(bubble.colorId).toBe(colorId);
   });
+
+  test('sollte die draw-Methode das gameObject erstellen und konfigurieren', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+    bubble.draw();
+
+    expect(mockScene.add.circle).toHaveBeenCalledWith(50, 50, BUBBLE_RADIUS, bubble.color);
+    expect(mockScene.physics.add.existing).toHaveBeenCalledWith(bubble.gameObject, false);
+    expect(bubble.gameObject.body.setCircle).toHaveBeenCalledWith(BUBBLE_RADIUS);
+    expect(bubble.gameObject.setStrokeStyle).toHaveBeenCalled();
+    expect(bubble.gameObject.body.setVelocity).toHaveBeenCalledWith(0,0);
+  });
+
+  test('sollte die setPosition-Methode die Position der Bubble und des gameObjects aktualisieren', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.GREEN);
+    bubble.draw(); // gameObject muss existieren
+
+    const newX = 150;
+    const newY = 200;
+    bubble.setPosition(newX, newY);
+
+    expect(bubble.x).toBe(newX);
+    expect(bubble.y).toBe(newY);
+    expect(bubble.gameObject.setPosition).toHaveBeenCalledWith(newX, newY);
+    expect(bubble.gameObject.body.setVelocity).toHaveBeenCalledWith(0, 0);
+    expect(bubble.gameObject.body.x).toBe(newX - bubble.radius);
+    expect(bubble.gameObject.body.y).toBe(newY - bubble.radius);
+  });
+
+  test('sollte die destroy-Methode das gameObject zerstören', () => {
+    const bubble = new Bubble(mockScene, 50, 50, BUBBLE_RADIUS, TEST_COLOR_MAP.YELLOW);
+    bubble.draw(); // gameObject muss existieren
+
+    const mockDestroy = bubble.gameObject.destroy; // Speichere die Mock-Funktion
+    bubble.destroy();
+
+    expect(mockDestroy).toHaveBeenCalled();
+    expect(bubble.gameObject).toBeNull();
+  });
 });
