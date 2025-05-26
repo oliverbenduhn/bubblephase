@@ -40,11 +40,17 @@ export class MobileOptimization {
   updateSafeArea() {
     // Prüfe auf CSS Environment Variables für Safe Areas
     if (typeof window !== 'undefined' && window.CSS && window.CSS.supports) {
-      if (window.CSS.supports('padding: env(safe-area-inset-top)')) {
-        // Nutze CSS Environment Variables für moderne Browser
-        const style = getComputedStyle(document.documentElement);
-        this.config.safeAreaInsets = {
-          top: parseInt(style.getPropertyValue('--sat') || '0') || this.config.safeAreaInsets.top,
+const tmp = document.createElement('div');
+tmp.style.paddingTop = 'env(safe-area-inset-top)';
+document.body.appendChild(tmp);
+const style = getComputedStyle(tmp);
+this.config.safeAreaInsets = {
+  top: parseInt(style.paddingTop) || this.config.safeAreaInsets.top,
+  right: parseInt(style.paddingRight) || this.config.safeAreaInsets.right,
+  bottom: parseInt(style.paddingBottom) || this.config.safeAreaInsets.bottom,
+  left: parseInt(style.paddingLeft) || this.config.safeAreaInsets.left,
+};
+document.body.removeChild(tmp);
           right: parseInt(style.getPropertyValue('--sar') || '0') || this.config.safeAreaInsets.right,
           bottom: parseInt(style.getPropertyValue('--sab') || '0') || this.config.safeAreaInsets.bottom,
           left: parseInt(style.getPropertyValue('--sal') || '0') || this.config.safeAreaInsets.left
@@ -494,10 +500,12 @@ export class MobileOptimization {
    * Entfernt die Mobile-Optimierungen
    */
   destroy() {
-    if (this.touchControls) {
-      Object.values(this.touchControls).forEach(control => control.destroy());
-      this.touchOverlay.destroy();
-    }
+if (this.touchControls) {
+  Object.values(this.touchControls).forEach(control => control.destroy());
+  this.touchOverlay.destroy();
+}
+if (this.aimHelper) this.aimHelper.destroy();
+this.trajectoryIndicators.forEach(ind => ind.destroy());
   }
 
   /**

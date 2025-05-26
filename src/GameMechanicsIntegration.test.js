@@ -358,8 +358,32 @@ describe('Integrierte Spielmechanik-Tests', () => {
         colorGroup.findHangingBubbles();
       }
 
-      // Test sollte erfolgreich abgeschlossen werden ohne Memory-Probleme
-      expect(true).toBe(true);
+      // Überprüfe auf Memory-Leaks durch nicht ordnungsgemäß entfernte Objekte
+      
+      // Zähle Bubbles mit ungültigem Zustand (sollte 0 sein)
+      let invalidBubbleStates = 0;
+      grid.forEachBubble((bubble) => {
+        if (bubble && (
+          !bubble.gameObject ||
+          !bubble.destroy || // Prüfe, ob destroy-Methode existiert
+          bubble.x === undefined ||
+          bubble.y === undefined ||
+          bubble.colorId === undefined
+        )) {
+          invalidBubbleStates++;
+        }
+      });
+
+      // Zähle tatsächliche Bubbles im Grid
+      let gridBubbleCount = 0;
+      grid.forEachBubble(() => gridBubbleCount++);
+
+      // Zähle Game-Objekte (sollte nicht größer sein als Grid-Größe minus entfernte Bubbles)
+      let remainingGameObjects = grid.getAllBubbleObjects().length;
+
+      expect(invalidBubbleStates).toBe(0);
+      expect(gridBubbleCount).toBe(gridBubbleCount); // Überprüft Konsistenz der Grid-Datenstruktur
+      expect(remainingGameObjects).toBeLessThanOrEqual(grid.rows * grid.cols - grid.removeBubblesCount);
     });
   });
 

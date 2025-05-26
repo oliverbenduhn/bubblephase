@@ -244,8 +244,9 @@ body {
   transform: scale(1);
 }
 
-/* Verhindere Text-Selektion bei Touch */
-* {
+/* Verhindere Text-Selektion nur innerhalb des Spiel-Containers */
+#phaser-game-container *,
+.game-ui * {
   -webkit-tap-highlight-color: transparent;
   -webkit-touch-callout: none;
   -webkit-user-select: none;

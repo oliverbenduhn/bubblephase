@@ -84,7 +84,7 @@ updateAim(pointerX, pointerY) {
 - ✅ MobileOptimization Import hinzugefügt
 - ✅ Instanz-Variable `mobileOptimization` hinzugefügt
 - ✅ Initialisierung in `create()` mit adaptiver Konfiguration
-- ✅ Event-Handler für Mobile-Events (`mobileAim`, `mobileShoot`, `mobileMove`)
+- ✅ Event-Handler für Mobile-Events (`mobileAim`, `mobileShoot`)
 - ✅ Erweiterte `updateAim()` Methode mit Trajektorien-Integration
 - ✅ Smart Hiding in `pointermove`, `pointerup`, und `shootBubble` Events
 

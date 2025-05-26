@@ -1,18 +1,57 @@
 /* App-spezifische Stile - kann vorerst leer bleiben */
 
+/* CSS Custom Properties für mobile-freundliche Viewport-Höhe */
+:root {
+  /* Fallback für ältere Browser */
+  --viewport-height: 100vh;
+  /* Moderne Viewport-Einheiten für bessere mobile Unterstützung */
+  --dynamic-viewport-height: 100dvh; /* Dynamic Viewport Height */
+  --small-viewport-height: 100svh;   /* Small Viewport Height */
+  /* JavaScript-gesteuerte Höhe (1vh = 1% der tatsächlichen Viewport-Höhe) */
+  --vh: 1vh;
+}
+
 .game-container {
   width: 100vw;
-  height: 100vh;
+  /* Fallback für ältere Browser und JavaScript-basierte Höhe */
+  height: calc(var(--vh, 1vh) * 100); /* JavaScript-Fallback */
+  /* Moderne Ansatz mit Fallbacks für verschiedene Browser-Unterstützung */
+  height: var(--viewport-height);
+  height: var(--small-viewport-height, var(--viewport-height));
+  height: var(--dynamic-viewport-height, var(--small-viewport-height, var(--viewport-height)));
+  
+  /* Zusätzliche mobile Optimierungen */
+  min-height: 100vh;
+  min-height: var(--small-viewport-height, 100vh);
+  min-height: calc(var(--vh, 1vh) * 100);
+  
   display: flex;
   justify-content: center;
   align-items: center;
   background-color: #000;
   overflow: hidden;
+  
+  /* Für ältere Browser: Safe Area Insets für Notch-Unterstützung */
+  padding-top: env(safe-area-inset-top, 0);
+  padding-bottom: env(safe-area-inset-bottom, 0);
+  padding-left: env(safe-area-inset-left, 0);
+  padding-right: env(safe-area-inset-right, 0);
 }
 
+/* Mobile-spezifische Anpassungen */
 @media (max-width: 768px) {
   .game-container {
     padding: 0;
+    /* Stelle sicher, dass das Spiel den ganzen Bildschirm nutzt */
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    
+    /* Safe Area für moderne mobile Browser */
+    padding-top: env(safe-area-inset-top, 0);
+    padding-bottom: env(safe-area-inset-bottom, 0);
   }
 }
 

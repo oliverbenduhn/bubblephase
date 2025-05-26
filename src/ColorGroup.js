@@ -12,11 +12,14 @@ export class ColorGroup {
    * @returns {Array<{row: number, col: number}>} - Eine Liste von Positionen der verbundenen Bubbles.
    */
   findConnectedBubbles(startRow, startCol) {
-    // Prüfe auf ungültige Eingaben
+    // Prüfe auf ungültige Eingaben und Grid-Grenzen
     if (startRow == null || startCol == null || 
         typeof startRow !== 'number' || typeof startCol !== 'number' ||
-        !isFinite(startRow) || !isFinite(startCol)) {
-      console.warn('[ColorGroup] findConnectedBubbles: Invalid start position provided');
+        !isFinite(startRow) || !isFinite(startCol) ||
+        startRow < 0 || startCol < 0 ||
+        startRow >= this.grid.rows || startCol >= this.grid.cols) {
+      console.warn('[ColorGroup] findConnectedBubbles: Invalid start position or out of grid bounds',
+        { startRow, startCol, gridRows: this.grid.rows, gridCols: this.grid.cols });
       return [];
     }
     
@@ -120,24 +123,37 @@ export class ColorGroup {
 
   /**
    * Private Hilfsmethode: Markiert alle mit einer Position verbundenen Bubbles
-   * @param {number} row - Startposition Reihe
-   * @param {number} col - Startposition Spalte
+   * Verwendet einen iterativen Ansatz mit Queue statt Rekursion für bessere Performance
+   * und Vermeidung von Stack Overflows bei großen Boards
+   * @param {number} startRow - Startposition Reihe
+   * @param {number} startCol - Startposition Spalte
    * @param {Set} visited - Set der besuchten Positionen
    * @param {Set} connected - Set der verbundenen Positionen
    * @private
    */
-  _markConnectedBubbles(row, col, visited, connected) {
-    const key = `${row}-${col}`;
-    if (visited.has(key) || !this.grid.getBubble(row, col)) {
-      return;
-    }
+  _markConnectedBubbles(startRow, startCol, visited, connected) {
+    const queue = [{ row: startRow, col: startCol }];
+    let queueIndex = 0; // Index für effiziente Queue-Verwaltung
     
-    visited.add(key);
-    connected.add(key);
-    
-    const neighbors = this.grid.getNeighbors(row, col);
-    for (const neighbor of neighbors) {
-      this._markConnectedBubbles(neighbor.row, neighbor.col, visited, connected);
+    while (queueIndex < queue.length) {
+      const { row, col } = queue[queueIndex++];
+      const key = `${row}-${col}`;
+      
+      if (visited.has(key) || !this.grid.getBubble(row, col)) {
+        continue;
+      }
+      
+      visited.add(key);
+      connected.add(key);
+      
+      // Füge alle nicht besuchten Nachbarn zur Queue hinzu
+      const neighbors = this.grid.getNeighbors(row, col);
+      for (const neighbor of neighbors) {
+        const neighborKey = `${neighbor.row}-${neighbor.col}`;
+        if (!visited.has(neighborKey) && this.grid.getBubble(neighbor.row, neighbor.col)) {
+          queue.push(neighbor);
+        }
+      }
     }
   }
 }

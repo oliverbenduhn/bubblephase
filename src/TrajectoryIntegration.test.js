@@ -103,13 +103,13 @@ describe('Trajectory Integration Tests', () => {
       isMobile: false,
       mobileOptimization: null,
       currentState: 'playing',
-      canShoot: true,
-      updateAim: null // Wird in Tests gesetzt
+      canShoot: true
+      // updateAim wird in den einzelnen Tests nach Bedarf gesetzt
     };
   });
 
   test('Mobile Optimization initializes with correct config for mobile devices', () => {
-    const { MobileOptimization } = require('./MobileOptimization.js');
+    import { MobileOptimization } from './MobileOptimization.js';
     
     const config = {
       showTouchControls: true,
@@ -141,18 +141,88 @@ describe('Trajectory Integration Tests', () => {
   test('updateAim method calls trajectory helper for all devices', () => {
     const { MobileOptimization } = require('./MobileOptimization.js');
     
-    // Setup scene mit MobileOptimization
+    // Setup scene mit MobileOptimization und zusätzlichen Properties
     scene.mobileOptimization = new MobileOptimization(scene, {});
+    scene.isAiming = false;
+    scene.BUBBLE_RADIUS = 15;
+    
+    // Mock Phaser Math utilities
+    global.Phaser = {
+      Math: {
+        Angle: {
+          Between: jest.fn((x1, y1, x2, y2) => Math.atan2(y2 - y1, x2 - x1))
+        },
+        RadToDeg: jest.fn((radians) => radians * 180 / Math.PI),
+        DegToRad: jest.fn((degrees) => degrees * Math.PI / 180)
+      }
+    };
+    
+    // Mock für simulateTrajectory Methode
+    scene.simulateTrajectory = jest.fn(() => [
+      { x: scene.cannon.x, y: scene.cannon.y },
+      { x: scene.cannon.x + 50, y: scene.cannon.y - 50 },
+      { x: scene.cannon.x + 100, y: scene.cannon.y - 100 }
+    ]);
+    
+    // Erweiterte Mock für aimLine graphics methods
+    scene.aimLine = {
+      clear: jest.fn(),
+      lineStyle: jest.fn(),
+      beginPath: jest.fn(), 
+      moveTo: jest.fn(),
+      lineTo: jest.fn(),
+      strokePath: jest.fn(),
+      fillStyle: jest.fn(),
+      fillCircle: jest.fn(),
+      setTo: jest.fn(),
+      setVisible: jest.fn()
+    };
+    
+    // Implementiere eine realistische updateAim-Simulation basierend auf der echten Implementierung
     scene.updateAim = function(pointerX, pointerY) {
       if (!this.aimLine || !this.cannon) return;
 
-      const angle = Math.atan2(pointerY - this.cannon.y, pointerX - this.cannon.x);
-      const distance = 200;
-      const endX = this.cannon.x + Math.cos(angle) * distance;
-      const endY = this.cannon.y + Math.sin(angle) * distance;
+      // Winkelberechnung
+      const angle = Phaser.Math.Angle.Between(
+        this.cannon.x,
+        this.cannon.y,
+        pointerX,
+        pointerY
+      );
 
-      this.aimLine.setTo(this.cannon.x, this.cannon.y, endX, endY);
+      // Winkelbegrenzung 
+      let angleInDegrees = Phaser.Math.RadToDeg(angle);
+      if (angleInDegrees > 180) angleInDegrees -= 360;
+      
+      const MIN_ANGLE = -160;
+      const MAX_ANGLE = -20;
+      
+      let limitedAngle = angle;
+      if (angleInDegrees > MAX_ANGLE && angleInDegrees < 90) {
+        limitedAngle = Phaser.Math.DegToRad(MAX_ANGLE);
+      } else if (angleInDegrees < MIN_ANGLE && angleInDegrees > -270) {
+        limitedAngle = Phaser.Math.DegToRad(MIN_ANGLE);
+      }
 
+      // Trajektorien-Simulation
+      const trajectory = this.simulateTrajectory(this.cannon.x, this.cannon.y, limitedAngle);
+
+      // Grafik-Updates
+      this.aimLine.clear();
+      
+      if (trajectory.length > 1) {
+        this.aimLine.lineStyle(1.5, 0x00ff00, 0.8);
+        this.aimLine.beginPath();
+        this.aimLine.moveTo(trajectory[0].x, trajectory[0].y);
+        
+        for (let i = 1; i < trajectory.length; i++) {
+          this.aimLine.lineTo(trajectory[i].x, trajectory[i].y);
+        }
+        
+        this.aimLine.strokePath();
+      }
+
+      // Mobile Optimization Integration
       if (this.mobileOptimization) {
         this.mobileOptimization.showTrajectoryHelper(
           this.cannon.x,
@@ -163,22 +233,27 @@ describe('Trajectory Integration Tests', () => {
       }
     };
 
-    // Test updateAim
+    // Test updateAim mit realistischer Simulation
     scene.updateAim(500, 300);
 
-    expect(scene.aimLine.setTo).toHaveBeenCalledWith(
+    // Verifikationen
+    expect(scene.aimLine.clear).toHaveBeenCalled();
+    expect(scene.simulateTrajectory).toHaveBeenCalledWith(
       scene.cannon.x,
       scene.cannon.y,
-      expect.any(Number),
       expect.any(Number)
     );
-    
     expect(scene.mobileOptimization.showTrajectoryHelper).toHaveBeenCalledWith(
       scene.cannon.x,
       scene.cannon.y,
       500,
       300
     );
+    
+    // Zusätzliche Überprüfungen für Grafik-Rendering
+    expect(scene.aimLine.lineStyle).toHaveBeenCalled();
+    expect(scene.aimLine.beginPath).toHaveBeenCalled();
+    expect(scene.aimLine.strokePath).toHaveBeenCalled();
   });
 
   test('trajectory helper is hidden when pointer moves outside valid area', () => {

@@ -212,10 +212,83 @@ describe('Physics Integration Tests', () => {
     };
   });
 
-  // Hinzufügen eines einfachen Tests, um den Fehler "Your test suite must contain at least one test" zu beheben
-  test('should have a valid mock scene', () => {
-    expect(mockScene).toBeDefined();
-    expect(mockScene.add).toBeDefined();
-    expect(mockScene.physics).toBeDefined();
+  beforeEach(() => {
+    grid = new Grid(mockScene, 8, 8);
+    shooter = new Shooter(mockScene, 400, 500);
+    colorGroup = new ColorGroup(grid);
+  });
+
+  describe('Physik-Verhalten von Bubbles', () => {
+    test('sollte korrekte Physik-Eigenschaften bei Bubble-Initialisierung setzen', () => {
+      const bubble = new Bubble(mockScene, 400, 300, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      
+      expect(bubble.gameObject.body.setCircle).toHaveBeenCalledWith(BUBBLE_RADIUS);
+      expect(bubble.gameObject.body.setCollideWorldBounds).toHaveBeenCalledWith(true);
+      expect(bubble.gameObject.body.setBounce).toHaveBeenCalledWith(1);
+      expect(bubble.gameObject.body.setMaxVelocity).toHaveBeenCalled();
+      expect(bubble.gameObject.body.setDrag).toHaveBeenCalled();
+    });
+
+    test('sollte Geschwindigkeit korrekt aktualisieren bei Schuss', () => {
+      const bubble = new Bubble(mockScene, 400, 500, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      const angle = Math.PI / 4; // 45 Grad
+      const velocity = 300;
+
+      bubble.shoot(angle, velocity);
+
+      const expectedVx = Math.cos(angle) * velocity;
+      const expectedVy = Math.sin(angle) * velocity;
+
+      expect(bubble.gameObject.body.setVelocity).toHaveBeenCalledWith(expectedVx, expectedVy);
+    });
+  });
+
+  describe('Kollisionserkennung', () => {
+    test('sollte Bubble-zu-Bubble Kollisionen korrekt erkennen', () => {
+      const bubble1 = new Bubble(mockScene, 100, 100, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      const bubble2 = new Bubble(mockScene, 100 + BUBBLE_RADIUS * 1.9, 100, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
+      
+      // Bubbles überlappen sich leicht (Abstand < 2 * BUBBLE_RADIUS)
+      const collision = Collision.checkBubbleCollision(bubble1, bubble2);
+      expect(collision).toBe(true);
+    });
+
+    test('sollte keine Kollision erkennen bei ausreichendem Abstand', () => {
+      const bubble1 = new Bubble(mockScene, 100, 100, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      const bubble2 = new Bubble(mockScene, 100 + BUBBLE_RADIUS * 3, 100, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
+      
+      // Bubbles sind weiter auseinander als 2 * BUBBLE_RADIUS
+      const collision = Collision.checkBubbleCollision(bubble1, bubble2);
+      expect(collision).toBe(false);
+    });
+  });
+
+  describe('Physik-Integration mit Grid', () => {
+    test('sollte Bubble korrekt im Grid platzieren nach Kollision', () => {
+      const movingBubble = new Bubble(mockScene, 200, 200, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      const staticBubble = new Bubble(mockScene, 200, 200 - BUBBLE_RADIUS * 2, BUBBLE_RADIUS, TEST_COLOR_MAP.BLUE);
+      
+      grid.addBubble(0, 4, staticBubble); // Statische Bubble in oberster Reihe
+      
+      const collisionPos = { x: 200, y: 200 };
+      const attachmentPos = Collision.findNearestEmptyCell(grid, collisionPos);
+      
+      expect(attachmentPos).toBeDefined();
+      expect(grid.isValidGridPosition(attachmentPos.row, attachmentPos.col)).toBe(true);
+      
+      // Prüfe, ob die Position unterhalb der statischen Bubble ist
+      expect(attachmentPos.row).toBe(1);
+    });
+
+    test('sollte Physik deaktivieren nach Grid-Attachment', () => {
+      const bubble = new Bubble(mockScene, 200, 200, BUBBLE_RADIUS, TEST_COLOR_MAP.RED);
+      const row = 1, col = 4;
+      
+      grid.addBubble(row, col, bubble);
+      
+      // Nach Attachment sollte die Bubble stationär sein
+      expect(bubble.gameObject.body.setImmovable).toHaveBeenCalledWith(true);
+      expect(bubble.gameObject.body.setVelocity).toHaveBeenCalledWith(0, 0);
+    });
   });
 });

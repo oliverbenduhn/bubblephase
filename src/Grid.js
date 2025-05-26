@@ -196,9 +196,22 @@ export class Grid {
         const { x, y } = this.gridToPixel(r, c);
         const bubble = new Bubble(this.scene, x, y, this.bubbleRadius, randomColorId);
         bubble.setPosition(x, y); // Explizit die Position setzen
-        bubble.draw(); // Zeichne die Bubble in der Szene
+        bubble.draw(); // Zeichne die Bubble in der Szene - KRITISCH für Kollisionserkennung!
         this.grid[r][c] = bubble;
+        
+        if (this.debugMode && !bubble.gameObject) {
+          console.error(`❌ CRITICAL: Failed to create gameObject for bubble at (${r}, ${c})`);
+        }
       }
+    }
+    
+    // 🔍 DEBUG: Finale Validierung nach Initialisierung
+    const totalBubbles = this.countBubbles();
+    const bubbleObjects = this.getAllBubbleObjects();
+    console.log(`🔍 Grid initialization complete: ${totalBubbles} bubbles, ${bubbleObjects.length} gameObjects`);
+    
+    if (totalBubbles !== bubbleObjects.length) {
+      console.error(`❌ CRITICAL: Mismatch between bubbles (${totalBubbles}) and gameObjects (${bubbleObjects.length})`);
     }
   }
 

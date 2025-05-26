@@ -60,6 +60,14 @@ export class Collision {
         // Kein Bubble im Grid - jede Position ist in Ordnung
         return approxGridPos;
       } else {
+        // SPEZIALFALL: Oberste Reihe - automatisch gültig ohne Nachbar-Check
+        if (approxGridPos.row === 0) {
+          if (process.env.NODE_ENV !== 'production') {
+   console.debug('Top row attachment detected');
+ }
+          return approxGridPos;
+        }
+        
         // Es gibt Bubbles - prüfe ob die Position an bestehende Bubbles angrenzt
         const neighbors = grid.getNeighbors(approxGridPos.row, approxGridPos.col);
         const hasAdjacentBubble = neighbors.some(neighbor => 
@@ -193,9 +201,11 @@ export class Collision {
     }
 
     // Strategie 4: Wenn es Bubbles gibt, bevorzuge Zellen die an Bubbles angrenzen (erweiterte Suche)
+    // WICHTIG: Vermeide Platzierung in bereits belegten Start-Reihen (0-5)
     if (hasBubblesInGrid) {
       let bestAdjacentCell = null;
       let minAdjacentDistance = Number.MAX_VALUE;
+      const minPreferredRow = 6; // Bevorzuge Reihen nach den Start-Bubbles
       
       const searchRadius = 4; // Erweiterte Suche
       for (let rOffset = -searchRadius; rOffset <= searchRadius; rOffset++) {
@@ -217,8 +227,11 @@ export class Collision {
               const dy = y - cellPos.y;
               const distance = Math.sqrt(dx * dx + dy * dy);
               
-              if (distance < minAdjacentDistance) {
-                minAdjacentDistance = distance;
+              // Bevorzuge Reihen ab 6 durch Distanz-Bonus
+              const adjustedDistance = testRow < minPreferredRow ? distance + 500 : distance;
+              
+              if (adjustedDistance < minAdjacentDistance) {
+                minAdjacentDistance = adjustedDistance;
                 bestAdjacentCell = { row: testRow, col: testCol };
               }
             }
@@ -227,15 +240,57 @@ export class Collision {
       }
       
       if (bestAdjacentCell) {
+        console.log('📍 Found adjacent cell (avoiding start rows):', bestAdjacentCell);
         return bestAdjacentCell;
       }
     }
 
+    // Strategie 4.5: SPEZIAL-FALLBACK für Grid-Oberseite
+    // Wenn die Bubble sehr nah an der Oberseite ist, finde die beste Position in der ersten FREIEN Reihe
+    // WICHTIG: Niemals in bereits belegte Start-Reihen (0-5) platzieren!
+    if (y <= grid.yOffset + (BUBBLE_RADIUS * 2)) {
+      console.log('🔝 Near top edge - searching first available row after initial bubbles');
+      let bestTopRowCell = null;
+      let minTopRowDistance = Number.MAX_VALUE;
+      
+      // Suche ab Reihe 6 (nach den initialen 6 Reihen)
+      const minAllowedRow = 6; // Erste freie Reihe nach den Start-Bubbles
+      
+      for (let row = minAllowedRow; row < grid.rows; row++) {
+        for (let col = 0; col < grid.cols; col++) {
+          if (grid.isValidGridPosition(row, col) && !grid.getBubble(row, col)) {
+            const cellPos = grid.gridToPixel(row, col);
+            const dx = x - cellPos.x;
+            const dy = y - cellPos.y;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+            
+            if (distance < minTopRowDistance) {
+              minTopRowDistance = distance;
+              bestTopRowCell = { row: row, col: col };
+            }
+          }
+        }
+        
+        // Wenn wir eine Position in dieser Reihe gefunden haben, nehme sie
+        if (bestTopRowCell && bestTopRowCell.row === row) {
+          break;
+        }
+      }
+      
+      if (bestTopRowCell) {
+        console.log('🔝 Found first available position below initial bubbles:', bestTopRowCell);
+        return bestTopRowCell;
+      }
+    }
+
     // Strategie 5: Fallback - breitere Suche nach freien Zellen
+    // WICHTIG: Bevorzuge Reihen nach den Start-Bubbles (ab Reihe 6)
     const searchRadius = 3;
     let bestCell = null;
     let minDistance = Number.MAX_VALUE;
+    const minPreferredRow = 6; // Bevorzuge Reihen nach den Start-Bubbles
 
+    // Erste Suche: Bevorzuge Reihen ab 6
     for (let rOffset = -searchRadius; rOffset <= searchRadius; rOffset++) {
       for (let cOffset = -searchRadius; cOffset <= searchRadius; cOffset++) {
         const testRow = approxGridPos.row + rOffset;
@@ -247,8 +302,11 @@ export class Collision {
           const dy = y - cellPos.y;
           const distance = Math.sqrt(dx * dx + dy * dy);
           
-          if (distance < minDistance) {
-            minDistance = distance;
+          // Bevorzuge Reihen ab 6 durch Distanz-Bonus
+          const adjustedDistance = testRow < minPreferredRow ? distance + 1000 : distance;
+          
+          if (adjustedDistance < minDistance) {
+            minDistance = adjustedDistance;
             bestCell = { row: testRow, col: testCol };
           }
         }
