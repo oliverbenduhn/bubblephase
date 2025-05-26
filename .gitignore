@@ -16,6 +16,9 @@ jspm_packages/
 dist/
 build/
 
+# Coverage reports
+coverage/
+
 # Environment files
 .env
 .env.local
